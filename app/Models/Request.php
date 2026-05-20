@@ -10,6 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Request extends Model
 {
     use LogsActivity;
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

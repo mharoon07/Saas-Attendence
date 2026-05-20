@@ -79,3 +79,13 @@ Route::get('language/{language}', function ($language) {
 })->name('language');
 
 require __DIR__.'/auth.php';
+
+// Helper route for database migrations on Hostinger shared hosting
+Route::get('/run-migration', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return 'Migration completed successfully!<br><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return 'Migration failed: ' . $e->getMessage();
+    }
+});

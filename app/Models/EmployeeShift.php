@@ -9,6 +9,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class EmployeeShift extends Model
 {
     use LogsActivity;
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

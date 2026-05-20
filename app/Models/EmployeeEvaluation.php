@@ -8,6 +8,7 @@ use Spatie\Activitylog\LogOptions;
 class EmployeeEvaluation extends Model
 {
     use LogsActivity;
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

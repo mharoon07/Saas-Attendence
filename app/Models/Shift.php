@@ -11,6 +11,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Shift extends Model
 {
     use LogsActivity;
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

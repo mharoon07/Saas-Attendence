@@ -10,6 +10,7 @@ class EmployeeSalary extends Model
 {
     use LogsActivity;
 
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

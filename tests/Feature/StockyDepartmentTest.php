@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\Employee;
+use App\Models\StockyUser;
 use App\Models\Globals;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class StockyDepartmentTest extends TestCase
@@ -25,6 +24,26 @@ class StockyDepartmentTest extends TestCase
             'prefix' => '',
         ]]);
 
+        Schema::connection('stocky')->create('users', function ($table) {
+            $table->id();
+            $table->string('firstname')->nullable();
+            $table->string('lastname')->nullable();
+            $table->string('username')->nullable();
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->string('phone')->nullable();
+            $table->integer('role_id')->nullable();
+            $table->tinyInteger('is_super_admin')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::connection('stocky')->create('role_user', function ($table) {
+            $table->id();
+            $table->integer('user_id');
+            $table->integer('role_id');
+            $table->timestamps();
+        });
+
         Schema::connection('stocky')->create('departments', function ($table) {
             $table->id();
             $table->string('department');
@@ -33,14 +52,6 @@ class StockyDepartmentTest extends TestCase
             $table->integer('user_id')->nullable();
             $table->timestamps();
         });
-
-        // Seed roles if not present
-        if (!Role::where('name', 'admin')->exists()) {
-            Role::create(['name' => 'admin']);
-        }
-        if (!Role::where('name', 'employee')->exists()) {
-            Role::create(['name' => 'employee']);
-        }
 
         // Create singleton Globals
         Globals::firstOrCreate([
@@ -64,8 +75,13 @@ class StockyDepartmentTest extends TestCase
 
     public function test_non_admin_cannot_access_stocky_departments()
     {
-        $employee = Employee::factory()->create();
-        $employee->assignRole('employee');
+        $employee = StockyUser::create([
+            'firstname' => 'John',
+            'lastname' => 'Doe',
+            'email' => 'employee@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 2, // Normal employee
+        ]);
 
         $response = $this->actingAs($employee)->get('/stocky-departments');
         $response->assertStatus(403); // Forbidden by admin role middleware
@@ -73,8 +89,13 @@ class StockyDepartmentTest extends TestCase
 
     public function test_admin_can_view_stocky_departments_list()
     {
-        $admin = Employee::factory()->create();
-        $admin->assignRole('admin');
+        $admin = StockyUser::create([
+            'firstname' => 'Admin',
+            'lastname' => 'User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1, // Admin
+        ]);
 
         // Seed some stocky departments
         DB::connection('stocky')->table('departments')->insert([
@@ -105,8 +126,13 @@ class StockyDepartmentTest extends TestCase
 
     public function test_admin_can_filter_stocky_departments_list()
     {
-        $admin = Employee::factory()->create();
-        $admin->assignRole('admin');
+        $admin = StockyUser::create([
+            'firstname' => 'Admin',
+            'lastname' => 'User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1, // Admin
+        ]);
 
         DB::connection('stocky')->table('departments')->insert([
             [
@@ -133,3 +159,4 @@ class StockyDepartmentTest extends TestCase
         );
     }
 }
+

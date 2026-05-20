@@ -10,6 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Payroll extends Model
 {
     use HasFactory, LogsActivity;
+    protected $connection = 'mysql';
     protected $guarded = [];
 
     public function getActivitylogOptions(): LogOptions

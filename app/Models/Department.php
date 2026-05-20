@@ -10,6 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Department extends Model
 {
     use HasFactory, LogsActivity;
+    protected $connection = 'mysql';
     protected $fillable = ['name'];
     public function getActivitylogOptions(): LogOptions
     {

@@ -10,13 +10,10 @@ use App\Models\Globals;
 use App\Models\Manager;
 use Carbon\Carbon;
 use Session;
-
-// You should rename "Verifiers" to "Validate"
 class CommonServices extends Controller
 {
     public function setManager(int $manager_id, int $thing_id, bool $thing_type): void
-    {
-        // thing_type: 0 for branch, 1 for department
+    { 
         Manager::create([
             'employee_id' => $manager_id,
             'branch_id' => $thing_type ? null : $thing_id,
