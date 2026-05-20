@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+        'email_to' => 'muhammadharoon02002@gmail.com',
+    ],
+
 ];

@@ -27,7 +27,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'salary' => auth()->user()->salary(),
-            'payroll_day' => Globals::first()->payroll_day,
+            'payroll_day' => Globals::first()?->payroll_day ?? 1,
             "employee_stats" => auth()->user()->myStats(),
             "attendance_status" => $attendanceStatus,
             "is_today_off" => $isTodayOff,

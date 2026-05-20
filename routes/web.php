@@ -20,6 +20,7 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::get('employees/archived', [\App\Http\Controllers\EmployeeController::class, 'archivedIndex'])->name('employees.archived');
     Route::resource('employees', \App\Http\Controllers\EmployeeController::class);
     Route::resource('branches', \App\Http\Controllers\BranchController::class);
+    Route::get('stocky-departments', [\App\Http\Controllers\StockyDepartmentController::class, 'index'])->name('stocky-departments.index');
     Route::resource('departments', \App\Http\Controllers\DepartmentController::class);
     Route::resource('positions', \App\Http\Controllers\PositionController::class);
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);

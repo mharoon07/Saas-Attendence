@@ -68,6 +68,9 @@ class Employee extends Authenticatable
     public function salary()
     {
         $salary = $this->salaries()->where('end_date', null)->first();
+        if (!$salary) {
+            return ['USD', 0, $this->hired_on ?? now()->toDateString()];
+        }
         return [$salary->currency, $salary->salary, $salary->start_date];
     }
 
@@ -97,9 +100,10 @@ class Employee extends Authenticatable
 
     // WARNING: THIS FUNCTION ONLY FETCHES THE LAST ACTIVE POSITION. IF AN EMPLOYEE HAS MULTIPLE ACTIVE POSITIONS, THIS FUNCTION WILL ONLY RETURN THE LAST ONE
     // USE activePositions() if you want to retrieve all active positions.
-    public function activePosition(): \Illuminate\Database\Eloquent\Collection
+    public function activePosition()
     {
-        return $this->employeePositions()->where('end_date', null)->first()->get();
+        $position = $this->employeePositions()->where('end_date', null)->first();
+        return $position ? $position->get() : collect();
     }
 
     public function activePositions(): \Illuminate\Database\Eloquent\Collection
@@ -138,14 +142,15 @@ class Employee extends Authenticatable
     }
     public function activeShift()
     {
-        return $this->employeeShifts()
+        $activeShift = $this->employeeShifts()
             ->with('shift')
             ->whereNull('end_date')
-            ->first()->shift;
+            ->first();
+        return $activeShift ? $activeShift->shift : null;
     }
     public function activeShiftPeriod()
     {
-        return $this->activeShift()?->shiftPeriod();
+        return $this->activeShift()?->shiftPeriod() ?? 8.0;
     }
 
     /**************------- Department -------*************/
@@ -173,16 +178,20 @@ class Employee extends Authenticatable
     }
 
     public function getYearStats($globalSettings = null){
-        $globalSettings ?? Globals::first();
+        $globalSettings = $globalSettings ?? Globals::first();
+        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendOffDays)) {
+            $weekendOffDays = ['friday', 'saturday'];
+        }
         $commonServices = new \App\Services\CommonServices();
-        $thisYearData = $commonServices->calcOffDays(json_decode($globalSettings->weekend_off_days), $this->hired_on);
+        $thisYearData = $commonServices->calcOffDays($weekendOffDays, $this->hired_on);
         $holidaysThisYear = $commonServices->countHolidays($this->hired_on);
         return [
             "workingDaysThisYear" => $thisYearData['total_year_days'],
             "WeekendOffDaysThisYear" => $thisYearData['offDays'],
-            "weekendOffDays" => json_decode($globalSettings->weekend_off_days), // Friday, Saturday.. etc
+            "weekendOffDays" => $weekendOffDays, // Friday, Saturday.. etc
             "HolidaysThisYear" => $holidaysThisYear,
-            "absence_limit" => $globalSettings->absence_limit,
+            "absence_limit" => $globalSettings ? $globalSettings->absence_limit : 30,
         ];
     }
     public function myStats(): array
@@ -194,22 +203,26 @@ class Employee extends Authenticatable
         $curYear = $now->year;
         $monthEnd = $now->endOfMonth()->format('j');
         $globalSettings = Globals::first();
+        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendOffDays)) {
+            $weekendOffDays = ['friday', 'saturday'];
+        }
         $commonServices = new \App\Services\CommonServices();
         $monthDates = [$curYear, $curMonth, 1, $curYear, $curMonth, $monthEnd];
 
         // Calculations for the entire month
         $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
-        $weekendsCount = $commonServices->calcOffDays(json_decode($globalSettings->weekend_off_days), $this->hired_on, $monthDates);
+        $weekendsCount = $commonServices->calcOffDays($weekendOffDays, $this->hired_on, $monthDates);
         $workingDays = $monthEnd - $holidaysCount - $weekendsCount;
 
         // Calculations from the start of the month until today.
         $holidaysCountSoFar = $commonServices->countHolidays($this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
         $workingDaysSoFar = $curDay - 1 -$holidaysCountSoFar - // -1 to exclude today
-            $commonServices->calcOffDays(json_decode($globalSettings->weekend_off_days), $this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
+            $commonServices->calcOffDays($weekendOffDays, $this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
 
         // Calculations for the entire year until today
         $workDaysSoFarThisYear = $now->startOfYear()->diffInDays($now) - $commonServices->countHolidays($this->hired_on, [$curYear, 1, 1, $curYear, $curMonth, $curDay]) -
-            $commonServices->calcOffDays(json_decode($globalSettings->weekend_off_days), $this->hired_on, [$curYear, 1, 1, $curYear, $curMonth, $curDay]);
+            $commonServices->calcOffDays($weekendOffDays, $this->hired_on, [$curYear, 1, 1, $curYear, $curMonth, $curDay]);
 
         // Calculating attendance stats for the month
         // $totalAttendanceSoFar attendance from the start of the year (or hire date if they weren't hired this year) until today.
@@ -269,10 +282,16 @@ class Employee extends Authenticatable
         $commonServices = new \App\Services\CommonServices();
         $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
 
+        $globalSettings = Globals::first();
+        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendOffDays)) {
+            $weekendOffDays = ['friday', 'saturday'];
+        }
+
         // Calculations for the entire month
         $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
         $workingDays = $monthEnd - $holidaysCount -
-            $commonServices->calcOffDays(json_decode(Globals::first()->weekend_off_days), $this->hired_on, $monthDates);
+            $commonServices->calcOffDays($weekendOffDays, $this->hired_on, $monthDates);
 
         $attended = $this->getAttended();
 

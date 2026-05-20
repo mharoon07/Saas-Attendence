@@ -53,7 +53,7 @@ class StarterSeeder extends Seeder
             'phone' => '01001095076',
             'national_id' => '29904268801154',
             'hired_on' => '2023-01-25',
-            'password' => '$2y$10$7BMn8WlpLkUB64fCCCVCvuFbqp4dO34dLL/a7MjMdoITz0FOIOZ.G',
+            'password' => 'password',
             'branch_id' => 1,
             'department_id' => 1,
         ]);

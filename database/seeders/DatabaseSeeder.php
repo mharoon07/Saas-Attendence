@@ -48,7 +48,7 @@ class DatabaseSeeder extends Seeder
             'phone' => '01001005000',
             'national_id' => '29904268801154',
             'hired_on' => '2023-01-25',
-            'password' => '$2y$10$7BMn8WlpLkUB64fCCCVCvuFbqp4dO34dLL/a7MjMdoITz0FOIOZ.G', // password
+            'password' => 'password',
         ]);
         $emp = Employee::factory()->create([
             'name' => 'Spicy Leaf',
@@ -56,7 +56,7 @@ class DatabaseSeeder extends Seeder
             'phone' => '01001005001',
             'national_id' => '29904268801155',
             'hired_on' => '2023-01-25',
-            'password' => '$2y$10$7BMn8WlpLkUB64fCCCVCvuFbqp4dO34dLL/a7MjMdoITz0FOIOZ.G', // passwprd
+            'password' => 'password',
         ]);
 
         Employee::factory(14)->create();

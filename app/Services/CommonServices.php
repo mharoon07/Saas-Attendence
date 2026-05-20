@@ -151,8 +151,12 @@ class CommonServices extends Controller
     // Just want to avoid doing logic of modifying the array for calcOffDays() call.
     public function getMonthStats($employee, $dateArr){
         $globalSettings = Globals::first();
+        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendOffDays)) {
+            $weekendOffDays = ['friday', 'saturday'];
+        }
         return [
-            'attendable_days' => $dateArr[5] - $this->calcOffDays(json_decode($globalSettings->weekend_off_days),
+            'attendable_days' => $dateArr[5] - $this->calcOffDays($weekendOffDays,
                     $employee->hired_on, $dateArr),
             'attended' => Attendance::where('employee_id', $employee->id)
                 ->whereYear('date', $dateArr[0])
@@ -191,7 +195,11 @@ class CommonServices extends Controller
     // Expects date to be in YYYY-MM-DD format
     public function isWeekend($date): bool
     {
-        $weekendDays = json_decode(Globals::first()->weekend_off_days);
+        $globals = Globals::first();
+        $weekendDays = $globals ? json_decode($globals->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendDays)) {
+            $weekendDays = ['friday', 'saturday'];
+        }
         $today = Carbon::parse($date)->englishDayOfWeek; // Get the current day of the week in English
         return in_array(strtolower($today), array_map('strtolower', $weekendDays));
     }

@@ -70,9 +70,16 @@ function changeLanguage(locale){
                     <EmployeeIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
-                <SidebarListItem :item-name="__('Organization')"
+                <!-- <SidebarListItem :item-name="__('Organization')"
                                  :active-links-recursive="['branches', 'departments', 'positions', 'shifts', 'globals', 'metrics', 'logs']"
                                  badge-content="0" link="branches.index">
+                    <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem> -->
+
+                <SidebarListItem :item-name="__('Departments')"
+                                 link="stocky-departments.index"
+                                 :active-links="['stocky-departments.index']"
+                >
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
