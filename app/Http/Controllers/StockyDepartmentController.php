@@ -25,4 +25,51 @@ class StockyDepartmentController extends Controller
             'filters' => $request->only(['term']),
         ]);
     }
+
+    /**
+     * Show the form for creating a new Stocky department.
+     */
+    public function create(): Response
+    {
+        $maxCode = \Illuminate\Support\Facades\DB::connection('stocky')
+            ->table('departments')
+            ->max('code');
+
+        $nextCodeNumber = $maxCode && is_numeric($maxCode) ? intval($maxCode) + 1 : 1;
+        $nextCode = str_pad($nextCodeNumber, 2, '0', STR_PAD_LEFT);
+
+        return Inertia::render('StockyDepartment/Create', [
+            'nextCode' => $nextCode,
+        ]);
+    }
+
+    /**
+     * Store a newly created Stocky department in storage.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'department' => [
+                'required',
+                'string',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('stocky.departments', 'department')
+            ],
+            'code' => [
+                'required',
+                'string',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('stocky.departments', 'code')
+            ],
+        ]);
+
+        StockyDepartment::create([
+            'department' => $validated['department'],
+            'code' => $validated['code'],
+            'user_id' => auth()->id(),
+            'department_head' => null,
+        ]);
+
+        return to_route('stocky-departments.index');
+    }
 }

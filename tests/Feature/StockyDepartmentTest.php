@@ -158,5 +158,80 @@ class StockyDepartmentTest extends TestCase
             ->where('departments.data.0.department', 'Sales')
         );
     }
+
+    public function test_admin_can_view_stocky_department_create_form()
+    {
+        $admin = StockyUser::create([
+            'firstname' => 'Admin',
+            'lastname' => 'User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/stocky-departments/create');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('StockyDepartment/Create')
+            ->where('nextCode', '01')
+        );
+    }
+
+    public function test_admin_can_create_stocky_department_with_valid_details()
+    {
+        $admin = StockyUser::create([
+            'firstname' => 'Admin',
+            'lastname' => 'User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->post('/stocky-departments', [
+            'department' => 'Engineering',
+            'code' => 'ENG01',
+        ]);
+
+        $response->assertRedirect('/stocky-departments');
+
+        $this->assertDatabaseHas('departments', [
+            'department' => 'Engineering',
+            'code' => 'ENG01',
+            'user_id' => $admin->id,
+        ], 'stocky');
+    }
+
+    public function test_admin_cannot_create_stocky_department_with_duplicate_details()
+    {
+        $admin = StockyUser::create([
+            'firstname' => 'Admin',
+            'lastname' => 'User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1,
+        ]);
+
+        DB::connection('stocky')->table('departments')->insert([
+            'department' => 'Engineering',
+            'code' => 'ENG01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Attempting duplicate department name
+        $response = $this->actingAs($admin)->post('/stocky-departments', [
+            'department' => 'Engineering',
+            'code' => 'ENG02',
+        ]);
+        $response->assertSessionHasErrors(['department']);
+
+        // Attempting duplicate code
+        $response = $this->actingAs($admin)->post('/stocky-departments', [
+            'department' => 'Design',
+            'code' => 'ENG01',
+        ]);
+        $response->assertSessionHasErrors(['code']);
+    }
 }
 

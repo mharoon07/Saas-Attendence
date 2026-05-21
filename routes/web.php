@@ -21,6 +21,8 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::resource('employees', \App\Http\Controllers\EmployeeController::class);
     Route::resource('branches', \App\Http\Controllers\BranchController::class);
     Route::get('stocky-departments', [\App\Http\Controllers\StockyDepartmentController::class, 'index'])->name('stocky-departments.index');
+    Route::get('stocky-departments/create', [\App\Http\Controllers\StockyDepartmentController::class, 'create'])->name('stocky-departments.create');
+    Route::post('stocky-departments', [\App\Http\Controllers\StockyDepartmentController::class, 'store'])->name('stocky-departments.store');
     Route::resource('departments', \App\Http\Controllers\DepartmentController::class);
     Route::resource('positions', \App\Http\Controllers\PositionController::class);
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
@@ -90,3 +92,37 @@ Route::get('/run-migration', function () {
         return 'Migration failed: ' . $e->getMessage();
     }
 });
+
+// Helper route for database starter seeding on Hostinger shared hosting
+Route::get('/run-seeder', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'StarterSeeder', '--force' => true]);
+        return 'Starter seeding completed successfully!<br><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return 'Starter seeding failed: ' . $e->getMessage();
+    }
+});
+
+// Helper route for database dummy/test seeding on Hostinger shared hosting
+Route::get('/run-dummy-seeder', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+        return 'Dummy seeding completed successfully!<br><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return 'Dummy seeding failed: ' . $e->getMessage();
+    }
+});
+
+// Helper route for clearing all caches on Hostinger shared hosting
+Route::get('/clear-cache', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('route:clear');
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        return 'All caches cleared successfully!<br><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre>';
+    } catch (\Exception $e) {
+        return 'Cache clearing failed: ' . $e->getMessage();
+    }
+});
+

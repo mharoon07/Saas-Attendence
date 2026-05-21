@@ -30,7 +30,7 @@ watch(term, search);
                 <Card class="!mt-0">
                     <h1 class="card-header !mb-4">{{ __(' Departments') }}</h1>
                     <div class="flex justify-between items-center mb-4 gap-4">
-                        <FlexButton :href="route('departments.create')" :text="__('Add A Department')">
+                        <FlexButton :href="route('stocky-departments.create')" :text="__('Add A Department')">
                             <PlusIcon/>
                         </FlexButton>
                         <SearchBar>
