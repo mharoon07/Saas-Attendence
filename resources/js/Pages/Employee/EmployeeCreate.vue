@@ -10,11 +10,9 @@ import GenericModal from "@/Components/GenericModal.vue";
 import {useToast} from "vue-toastification";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
-import {Switch} from "@headlessui/vue";
 import Card from "@/Components/Card.vue";
-import {inject} from "vue";
+import {inject, computed} from "vue";
 import {__} from "@/Composables/useTranslations.js";
-import ToolTip from "@/Components/ToolTip.vue";
 import dayjs from "dayjs";
 
 const props = defineProps({
@@ -25,6 +23,12 @@ const props = defineProps({
     roles: Object,
 })
 
+// Pre-select the first branch (default branch)
+const defaultBranchId = props.branches && props.branches.length > 0 ? props.branches[0].id : '';
+
+// Stocky departments - shown as-is (not filtered by branch)
+const filteredDepartments = computed(() => props.departments);
+
 const form = useForm({
     name: '',
     national_id: '',
@@ -33,15 +37,16 @@ const form = useForm({
     address: '',
     bank_acc_no: '',
     hired_on: new Date(),
-    branch_id: '',
+    gender: '',
+    branch_id: defaultBranchId,
     department_id: '',
     position_id: '',
     shift_id: '',
-    currency: '',
+    currency: 'PKR',
     salary: '',
-    role: '',
-    is_remote: false,
 });
+
+
 
 const positionForm = useForm({
     name: '',
@@ -213,6 +218,19 @@ const submitShift = () => {
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-2 gap-8 mt-4">
+                                <div>
+                                    <InputLabel for="gender" :value="__('Gender')"/>
+                                    <select id="gender" class="fancy-selector" v-model="form.gender" required>
+                                        <option value="" disabled>{{__('Select Gender')}}</option>
+                                        <option value="male">{{__('Male')}}</option>
+                                        <option value="female">{{__('Female')}}</option>
+                                        <option value="other">{{__('Other')}}</option>
+                                    </select>
+                                    <InputError class="mt-2" :message="form.errors.gender"/>
+                                </div>
+                            </div>
+
                             <div class="mt-4">
                                 <InputLabel for="address" :value="__('Address')"/>
                                 <TextInput
@@ -271,7 +289,7 @@ const submitShift = () => {
                                         </option>
                                     </select>
                                     <InputError class="mt-2" :message="form.errors.branch_id"/>
-                                    <p class="text-xs inline ltr:mr-1 rtl:ml-1 "> {{__('Branch not listed?')}} </p>
+                                    <!-- <p class="text-xs inline ltr:mr-1 rtl:ml-1 "> {{__('Branch not listed?')}} </p>
                                     <form @submit.prevent="submitBranch" class=" inline">
                                         <GenericModal :modalId="'branchModal'"
                                                       :title="__('Create a new one.')" :modalHeader="__('Create a New Branch')"
@@ -348,14 +366,14 @@ const submitShift = () => {
                                                 </button>
                                             </template>
                                         </GenericModal>
-                                    </form>
+                                    </form> -->
                                 </div>
 
                                 <div>
                                     <InputLabel for="department_id" :value="__('Department')"/>
                                     <select id="department_id" class="fancy-selector" v-model="form.department_id">
                                         <option selected value="">{{__('Choose a Department')}}</option>
-                                        <option v-for="department in departments" :key="department.id"
+                                        <option v-for="department in filteredDepartments" :key="department.id"
                                                 :value="department.id">{{ department.name }}
                                         </option>
                                     </select>
@@ -560,7 +578,7 @@ const submitShift = () => {
                                         <select id="currency"
                                                 class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
                                                 v-model="form.currency">
-                                            <option value='' selected>Currency</option>
+                                            <option value="PKR">PKR</option>
                                             <option value="EGP">EGP</option>
                                             <option value="USD">USD</option>
                                             <option value="EUR">EUR</option>
@@ -583,39 +601,6 @@ const submitShift = () => {
                                     </div>
                                     <InputError class="mt-2" :message="form.errors.currency"/>
                                     <InputError class="mt-2" :message="form.errors.salary"/>
-                                </div>
-                                <div>
-                                    <InputLabel for="role" :value="__('Permissions Level')"/>
-                                    <select id="role" class="fancy-selector" v-model="form.role">
-                                        <option selected value="">{{__('Choose a Permission Level')}}</option>
-                                        <option v-for="role in roles" :key="role.id" :value="role.name">
-                                            {{ role.name }}
-                                        </option>
-                                    </select>
-                                    <InputError class="mt-2" :message="form.errors.role"/>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-8 mt-4">
-                                <div>
-                                    <InputLabel for="is_remote" :value="__('Remote Worker?')" class="inline"/>
-                                    <ToolTip>
-                                        {{__('Remote Workers can take attendance anywhere, not necessarily from the organization')}}, <br/>
-                                        {{__('if ip-based attendance is enabled from the organization settings')}}.
-                                    </ToolTip>
-                                    <div>
-                                        <Switch
-                                            v-model="form.is_remote" dir="ltr"
-                                            :class="form.is_remote ? 'bg-purple-600' : 'bg-gray-400'"
-                                            class="relative inline-flex h-6 w-11 items-center rounded-full mt-1"
-                                        >
-                                            <span class="sr-only">{{__('Remote Worker')}}</span>
-                                            <span
-                                                :class="form.is_remote ? 'translate-x-6' : 'translate-x-1'"
-                                                class="inline-block h-4 w-4 transform rounded-full bg-white transition"
-                                            />
-                                        </Switch>
-                                    </div>
-                                    <InputError class="mt-2" :message="form.errors.is_remote"/>
                                 </div>
                             </div>
 

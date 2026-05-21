@@ -30,7 +30,6 @@ class EmployeeServices
             'hired_on' => $res['hired_on'],
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
-            'is_remote' => $res['is_remote'],
             'password' => $res['password'],
         ]);
 
@@ -63,15 +62,22 @@ class EmployeeServices
             ]);
         }
 
-        // Assign Role
-        $emp->assignRole($res['role']);
+        // Assign default role
+        if (!\Spatie\Permission\Models\Role::where('name', 'employee')->where('guard_name', 'web')->exists()) {
+            \Spatie\Permission\Models\Role::create(['name' => 'employee', 'guard_name' => 'web']);
+        }
+        $emp->assignRole('employee');
 
         // Send Email to user with credentials
-        Mail::to($emp->email)->send(new EmployeeRegisterationCredentials([
-            'name' => $emp->name,
-            'email' => $emp->email,
-            'password' => $password,
-        ]));
+        try {
+            Mail::to($emp->email)->send(new EmployeeRegisterationCredentials([
+                'name' => $emp->name,
+                'email' => $emp->email,
+                'password' => $password,
+            ]));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send registration email to " . $emp->email . ": " . $e->getMessage());
+        }
 
         return to_route('employees.show', ['employee' => $emp->id]);
     }
@@ -90,7 +96,6 @@ class EmployeeServices
             'hired_on' => $res['hired_on'],
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
-            'is_remote' => $res['is_remote'],
         ]);
 
         // Update Shifts, Salary, Position, and Permissions
@@ -136,7 +141,12 @@ class EmployeeServices
 
         $currentRole = $employee->getRoleNames()->first();
         if ($currentRole != $res['role']) {
-            $employee->removeRole($currentRole);
+            if ($currentRole) {
+                $employee->removeRole($currentRole);
+            }
+            if (!\Spatie\Permission\Models\Role::where('name', $res['role'])->where('guard_name', 'web')->exists()) {
+                \Spatie\Permission\Models\Role::create(['name' => $res['role'], 'guard_name' => 'web']);
+            }
             $employee->assignRole($res['role']);
             $employee->save();
         }
@@ -162,7 +172,6 @@ class EmployeeServices
             'bank_acc_no' => $employee->bank_acc_no,
             'hired_on' => $employee->hired_on,
             'released_on' => Carbon::now()->format('Y-m-d'),
-            'was_remote' => $employee->is_remote,
         ]);
 
         // Delete employee

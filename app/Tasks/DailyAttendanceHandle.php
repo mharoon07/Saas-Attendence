@@ -20,10 +20,13 @@ class DailyAttendanceHandle
         $carbon = CarbonImmutable::now()->subDay();
         $date = $carbon->toDateString();
 
-        // This condition is to check if yesterday was a weekend off day
-        if (in_array(strtolower($carbon->dayName), json_decode(Globals::first()->weekend_off_days))) {
-            logger("Yesterday was a weekend off day, nothing to do in the attendance scheduler");
+        $commonServices = new \App\Services\CommonServices();
+
+        // This condition is to check if yesterday was a day off (weekend or public holiday)
+        if ($commonServices->isDayOff($date)) {
+            logger("Yesterday was a day off (weekend/holiday), nothing to do in the attendance scheduler");
             Artisan::call('up');
+            return;
         }
 
         // Mark all the employees who did not sign off as missed

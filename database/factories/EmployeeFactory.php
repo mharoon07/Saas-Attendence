@@ -31,7 +31,6 @@ class EmployeeFactory extends Factory
             'department_id' => \App\Models\Department::inRandomOrder()->first()?->id ?? \App\Models\Department::factory(),
             'branch_id' => \App\Models\Branch::inRandomOrder()->first()?->id ?? \App\Models\Branch::factory(),
             'hired_on' => Carbon::createFromTimestamp(mt_rand(Carbon::now()->subYears(3)->timestamp, Carbon::now()->timestamp))->format('Y-m-d'),
-            'is_remote' => false,
         ];
     }
 

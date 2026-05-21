@@ -16,6 +16,8 @@ class Employee extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
 
+    public $guard_name = 'web';
+
     /**
      * The attributes that are mass assignable.
      *

@@ -48,7 +48,7 @@ class CalendarController extends Controller
     public function create()
     {
         return Inertia::render('Calendar/CalendarItemCreate', [
-            'types' => ['holiday', 'meeting', 'event', 'other'],
+            'types' => ['holiday'],
         ]);
     }
 
@@ -77,7 +77,7 @@ class CalendarController extends Controller
     public function edit(string $id)
     {
         return Inertia::render('Calendar/CalendarItemEdit', [
-            'types' => ['holiday', 'meeting', 'event', 'other'],
+            'types' => ['holiday'],
             'calendarItem' => Calendar::findOrFail($id),
         ]);
     }

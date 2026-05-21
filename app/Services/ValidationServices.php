@@ -41,13 +41,12 @@ Class ValidationServices extends Controller {
             'bank_acc_no' => ['nullable', 'iban'],
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
-            'is_remote' => ['required', 'boolean'],
+            'gender' => ['nullable', 'string', 'in:male,female,other'],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
             'salary' => ['required','integer'],
-            'role' => ['required', Rule::in($this->roles)],
 
         ], $this->validationMessages);
     }
@@ -66,7 +65,6 @@ Class ValidationServices extends Controller {
             'bank_acc_no' => ['iban', 'nullable'],
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
-            'is_remote' => ['required', 'boolean'],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
@@ -275,11 +273,12 @@ Class ValidationServices extends Controller {
     }
     public function validateCalendarItemCreationDetails($request)
     {
+        $request->merge(['type' => 'holiday']);
         return $request->validate([
             'date' => ['array','size:2'],
             'date.*' => ['nullable', 'date_format:Y-m-d'],
             'title' => ['required', 'string'],
-            'type' => ['required', 'string', 'in:holiday,meeting,event,other'],
+            'type' => ['required', 'string', 'in:holiday'],
         ], $this->validationMessages);
     }
     public function validateYearDayCreationDetails($request)

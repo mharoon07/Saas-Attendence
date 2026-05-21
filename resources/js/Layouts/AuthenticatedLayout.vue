@@ -13,28 +13,9 @@ import TableIcon from "@/Components/Icons/TableIcon.vue";
 import MoneyIcon from "@/Components/Icons/MoneyIcon.vue";
 import RocketIcon from "@/Components/Icons/RocketIcon.vue";
 import UserIcon from "@/Components/Icons/UserIcon.vue";
-import "/node_modules/flag-icons/css/flag-icons.min.css";
-import {router} from "@inertiajs/vue3";
-
 const showingNavigationDropdown = ref(false);
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
-
-const locales = {
-    // LOCALE: [Full Name for Front-End in Native Language, Country Flag Code],
-    en: ['English','us'],
-    ar: ['العربية', 'arab'],
-};
-
-function changeLanguage(locale){
-
-    router.visit(route('language', {language: locale}),
-        {
-            onSuccess: () => {
-                window.history.go(0); // Sorry SPA Lords, Have to do a full refresh here.
-            },
-        });
-}
 
 
 </script>
@@ -43,9 +24,7 @@ function changeLanguage(locale){
 
 
     <aside id="separator-sidebar"
-           class="fixed top-0 z-40 w-64 h-screen transition-transform ltr:-translate-x-full  ltr:sm:translate-x-0
-                                                                      rtl:translate-x-full rtl:sm:-translate-x-0"
-           :class="$page.props.locale == 'ar' ? 'right-0' : 'left-0'"
+           class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0"
            aria-label="Sidebar">
         <div
             class="h-full px-3 py-4 overflow-y-auto border-r flex flex-col justify-between dark:bg-gray-800 dark:border-gray-800">
@@ -70,24 +49,17 @@ function changeLanguage(locale){
                     <EmployeeIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
-                <!-- <SidebarListItem :item-name="__('Organization')"
+                <SidebarListItem :item-name="__('Organization')"
                                  :active-links-recursive="['branches', 'departments', 'positions', 'shifts', 'globals', 'metrics', 'logs']"
                                  badge-content="0" link="branches.index">
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
-                </SidebarListItem> -->
+                </SidebarListItem>
 
                 <SidebarListItem :item-name="__('Departments')"
                                  link="stocky-departments.index"
                                  :active-links="['stocky-departments.index']"
                 >
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
-                </SidebarListItem>
-
-                <SidebarListItem :item-name="__('Requests')" :hasBadge="($page.props.ui.reqCount.toString() !== '0')"
-                                 badge="number" :badge-content="$page.props.ui.reqCount.toString() ?? '?'"
-                                 link="requests.index" :active-links="['requests.index', 'requests.create',
-                 'requests.show', 'requests.edit']">
-                    <MessageIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
                 <SidebarListItem :item-name="__('Calendar')" link="calendar.index"
@@ -105,6 +77,12 @@ function changeLanguage(locale){
                                  :activeLinks="['payrolls.index', 'payrolls.show', 'payrolls.edit']"
                 >
                     <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
+                <SidebarListItem :item-name="__('Reports')" link="reports.index"
+                                 :activeLinks="['reports.index']"
+                >
+                    <TableIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
             </ul>
@@ -127,13 +105,7 @@ function changeLanguage(locale){
                     <UserIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
-                <SidebarListItem :item-name="__('My Requests')" :hasBadge="($page.props.ui.reqCount.toString() !== '0')"
-                                 badge="number" :badge-content="$page.props.ui.reqCount.toString() ?? '?'"
-                                 link="requests.index"
-                                 :active-links="['requests.index', 'requests.show', 'requests.create']"
-                >
-                    <MessageIcon class="text-gray-500 dark:text-gray-100"/>
-                </SidebarListItem>
+
 
                 <SidebarListItem :item-name="__('My Payrolls')"
                                  link="payrolls.index" :active-links="['payrolls.index', 'payrolls.show']">
@@ -148,11 +120,17 @@ function changeLanguage(locale){
                                  :active-links="['attendance.dashboard']">
                     <TableIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
+
+                <SidebarListItem :item-name="__('My Reports')" link="reports.index"
+                                 :active-links="['reports.index']"
+                >
+                    <TableIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
             </ul>
         </div>
     </aside>
 
-    <div :class="$page.props.locale === 'ar' ? 'sm:mr-64' : 'sm:ml-64'">
+    <div class="sm:ml-64">
         <div>
             <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
                 <nav class=" border-b border-gray-300 dark:border-gray-600">
@@ -203,29 +181,7 @@ function changeLanguage(locale){
                                         ></path>
                                     </svg>
                                 </button>
-                                <div class="ml-3 relative !flex">
-                                    <Dropdown align="right" width="48">
-                                        <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
-                                            >
-                                                <span :class="'fi fi-' + locales[$page.props.locale][1] + ' mx-2'"></span>
-                                                {{ locales[$page.props.locale][0] }}
-                                            </button>
-                                        </span>
-                                        </template>
 
-                                        <template #content>
-                                            <DropdownLink v-for="locale in Object.keys(locales).filter((locale) => locale !== $page.props.locale)"
-                                                          @click="changeLanguage(locale)">
-                                                <span :class="'fi fi-' + locales[locale][1] + ' mx-2'"> </span>
-                                                {{ locales[locale][0] }}
-                                            </DropdownLink>
-                                        </template>
-                                    </Dropdown>
-                                </div>
                                 <div class="ml-3 relative">
                                     <Dropdown align="right" width="48">
                                         <template #trigger>
@@ -304,27 +260,7 @@ function changeLanguage(locale){
                         class="sm:hidden"
                     >
 
-                        <Dropdown align="right" width="48">
-                            <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
-                                            >
-                                                <span :class="'fi fi-' + locales[$page.props.locale][1] + ' mx-2'"></span>
-                                                {{ locales[$page.props.locale][0] }}
-                                            </button>
-                                        </span>
-                            </template>
 
-                            <template #content>
-                                <DropdownLink v-for="locale in Object.keys(locales).filter((locale) => locale !== $page.props.locale)"
-                                              @click="changeLanguage(locale)">
-                                    <span :class="'fi fi-' + locales[locale][1] + ' mx-2'"> </span>
-                                    {{ locales[locale][0] }}
-                                </DropdownLink>
-                            </template>
-                        </Dropdown>
 
                         <div class="pt-2 pb-3 space-y-1">
                             <ResponsiveNavLink :href="route('dashboard.index')"
@@ -334,7 +270,7 @@ function changeLanguage(locale){
 
                             <ResponsiveNavLink :href="route('employees.index')">Employees</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('branches.index')">Organization</ResponsiveNavLink>
-                            <ResponsiveNavLink :href="route('requests.index')">Requests</ResponsiveNavLink>
+
                             <ResponsiveNavLink :href="route('calendar.index')">Calendar</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('attendances.index')">Attendance</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('payrolls.index')">Payrolls</ResponsiveNavLink>

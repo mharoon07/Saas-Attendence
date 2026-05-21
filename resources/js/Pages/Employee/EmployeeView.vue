@@ -132,11 +132,6 @@ const computedManages = computed(() => {
                             <DD>{{ employee.hired_on }}</DD>
                         </DescriptionListItem>
 
-                        <DescriptionListItem colored>
-                            <DT>{{__('Remote Worker?')}}</DT>
-                            <DD>{{ props.employee.is_remote ? __('Yes') : __('No') }}</DD>
-                        </DescriptionListItem>
-
                         <DescriptionListItem >
                             <DT>{{__('Address')}}</DT>
                             <DD><a :href="'https://www.google.com/maps/search/?api=1&query=' + props.employee.address" target=”_blank” >{{ employee.address }}</a></DD>

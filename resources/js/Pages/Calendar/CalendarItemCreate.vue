@@ -23,7 +23,7 @@ const props = defineProps({
 const form = useForm({
     date: '',
     title: '',
-    type: '',
+    type: 'holiday',
 });
 
 
@@ -63,16 +63,19 @@ const submitForm = () => {
                                 __('1. Adding a holidays means the day is off, and the attendance on that day will not be considered.') + '<br/>' +
                                 __('2. If a holiday overlaps with a weekend, the system will not consider the overlap and count the holiday and the weekend as 2 non-attendable days, not just 1.')
                                 "/>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <InputLabel for="type_id" :value="__('Type')"/>
-                                <select id="manager_id" class="fancy-selector" v-model="form.type">
-                                    <option selected value="">{{__('Choose a Request Type')}}</option>
-                                    <option v-for="type in types" :key="type.id" :value="type">
-                                        {{ calendar_types[type] }}
-                                    </option>
-                                </select>
-                                <InputError class="mt-2" :message="form.errors.type"/>
+                                <InputLabel for="title" :value="__('Title')"/>
+                                <TextInput
+                                    id="title"
+                                    type="text"
+                                    class="mt-1 block w-full"
+                                    :class="{'border border-red-500': form.errors.title}"
+                                    v-model="form.title"
+                                    autocomplete="off"
+                                    :placeholder="__('Public Holiday / Event Name')"
+                                />
+                                <InputError class="mt-2" :message="form.errors.title"/>
                             </div>
                             <div>
                                 <InputLabel for="date" :value="__('Date (Range selection is available)')"/>
@@ -88,21 +91,6 @@ const submitForm = () => {
                                     required
                                 ></VueDatePicker>
                                 <InputError class="mt-2" :message="form.errors.date"/>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 gap-4 mt-4">
-                            <div>
-                                <InputLabel for="title" :value="__('Title')"/>
-                                <TextInput
-                                    id="title"
-                                    type="text"
-                                    class="mt-1 block w-full"
-                                    :class="{'border border-red-500': form.errors.title}"
-                                    v-model="form.title"
-                                    autocomplete="off"
-                                    :placeholder="__('I will be absent for 3 days because I\'m sick.')"
-                                />
-                                <InputError class="mt-2" :message="form.errors.title"/>
                             </div>
                         </div>
                         <div class="flex items-center justify-end mt-4">

@@ -31,6 +31,22 @@ const props = defineProps(
     }
 )
 
+const lastPosition = props.employee.employee_positions?.length
+    ? props.employee.employee_positions[props.employee.employee_positions.length - 1]
+    : null;
+
+const lastShift = props.employee.employee_shifts?.length
+    ? props.employee.employee_shifts[props.employee.employee_shifts.length - 1]
+    : null;
+
+const lastSalary = props.employee.salaries?.length
+    ? props.employee.salaries[props.employee.salaries.length - 1]
+    : null;
+
+const lastRole = props.employee.roles?.length
+    ? props.employee.roles[props.employee.roles.length - 1]
+    : null;
+
 const form = useForm({
     name: props.employee.name,
     national_id: props.employee.national_id,
@@ -41,12 +57,11 @@ const form = useForm({
     hired_on: props.employee.hired_on,
     branch_id: props.employee.branch_id,
     department_id: props.employee.department_id,
-    position_id: props.employee.employee_positions[props.employee.employee_positions.length - 1]['position']?.['id'],
-    shift_id: props.employee.employee_shifts[props.employee.employee_shifts.length - 1]['shift']['id'],
-    currency: props.employee.salaries[props.employee.salaries.length - 1]['currency'],
-    salary: props.employee.salaries[props.employee.salaries.length - 1]['salary'],
-    role: props.employee.roles[props.employee.roles.length-1]['name'],
-    is_remote: props.employee.is_remote,
+    position_id: (lastPosition && lastPosition.position) ? lastPosition.position.id : '',
+    shift_id: (lastShift && lastShift.shift) ? lastShift.shift.id : '',
+    currency: lastSalary ? lastSalary.currency : '',
+    salary: lastSalary ? lastSalary.salary : '',
+    role: lastRole ? lastRole.name : '',
 });
 
 const positionForm = useForm({
@@ -309,7 +324,7 @@ const submitShift = () => {
                                     </option>
                                 </select>
                                 <InputError class="mt-2" :message="form.errors.branch_id"/>
-                                <p class="text-xs inline ltr:mr-1 rtl:ml-1"> Branch not listed? </p>
+                                <!-- <p class="text-xs inline ltr:mr-1 rtl:ml-1"> Branch not listed? </p>
                                 <form @submit.prevent="submitBranch" class=" inline">
                                     <GenericModal :modalId="'branchModal'"
                                                   :title="__('Create a new one.')" :modalHeader="__('Create a New Branch')"
@@ -386,7 +401,7 @@ const submitShift = () => {
                                             </button>
                                         </template>
                                     </GenericModal>
-                                </form>
+                                </form> -->
                             </div>
 
                             <div>
@@ -598,6 +613,7 @@ const submitShift = () => {
                                             class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
                                             v-model="form.currency">
                                         <option value='' selected>Currency</option>
+                                        <option value="PKR">PKR</option>
                                         <option value="EGP">EGP</option>
                                         <option value="USD">USD</option>
                                         <option value="EUR">EUR</option>
@@ -621,40 +637,8 @@ const submitShift = () => {
                                 <InputError class="mt-2" :message="form.errors.currency"/>
                                 <InputError class="mt-2" :message="form.errors.salary"/>
                             </div>
-                            <div>
-                                <InputLabel for="role" :value="__('Permissions Level')"/>
-                                <select id="role" class="fancy-selector" v-model="form.role">
-                                    <option selected value="">{{__('Choose a Permission Level')}}</option>
-                                    <option v-for="role in roles" :key="role.id" :value="role.name">
-                                        {{ role.name }}
-                                    </option>
-                                </select>
-                                <InputError class="mt-2" :message="form.errors.role"/>
-                            </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-8 mt-4">
-                            <div>
-                                <InputLabel for="is_remote" :value="__('Remote Worker?')" class="inline"/>
-                                <ToolTip>
-                                    {{__('Remote Workers can take attendance anywhere, not necessarily from the organization')}}, <br/>
-                                    {{__('if ip-based attendance is enabled from the organization settings')}}.
-                                </ToolTip>
-                                <div>
-                                    <Switch
-                                        v-model="form.is_remote" dir="ltr"
-                                        :class="form.is_remote ? 'bg-purple-600' : 'bg-gray-400'"
-                                        class="relative inline-flex h-6 w-11 items-center rounded-full mt-1"
-                                    >
-                                        <span class="sr-only">{{__('Remote Worker')}}</span>
-                                        <span
-                                            :class="form.is_remote ? 'translate-x-6' : 'translate-x-1'"
-                                            class="inline-block h-4 w-4 transform rounded-full bg-white transition"
-                                        />
-                                    </Switch>
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.is_remote"/>
-                            </div>
-                        </div>
+
 
                         <div class="flex items-center justify-end mt-4">
                             <form @submit.prevent="destroy" class=" inline">

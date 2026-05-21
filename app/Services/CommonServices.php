@@ -133,12 +133,14 @@ class CommonServices extends Controller
         $totalDays = 0;
         foreach ($holidaysArray as $entry) {
             $startDate = Carbon::parse($entry['start_date']);
-            $endDate = $entry['end_date'] ? Carbon::parse($entry['end_date']) : null;
-            if ($endDate === null) {
-                $totalDays += 1;
-            } else {
-                $daysDifference = $endDate->diffInDays($startDate) + 1;
-                $totalDays += $daysDifference;
+            $endDate = $entry['end_date'] ? Carbon::parse($entry['end_date']) : clone $startDate;
+            
+            $currentDate = clone $startDate;
+            while ($currentDate <= $endDate) {
+                if (!$this->isWeekend($currentDate->toDateString())) {
+                    $totalDays += 1;
+                }
+                $currentDate->addDay();
             }
         }
         return $totalDays;

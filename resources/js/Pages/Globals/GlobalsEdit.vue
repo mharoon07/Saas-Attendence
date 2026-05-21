@@ -146,7 +146,7 @@ onMounted(() => {
                             <InputError class="mt-2" :message="form.errors.timezone"/>
                         </div>
                         <div class="mt-2">
-                            <InputLabel class="inline" for="is_remote" :value="__('Enable IP-Based Attendance?')"/>
+                            <InputLabel class="inline" for="is_ip_based" :value="__('Enable IP-Based Attendance?')"/>
                             <ToolTip>
                                 {{__('The set IPs will be used to compare employee attendance\'s IP with it')}}. <br/>
                                 {{__('If the IPs mismatch, it means the employee is registering their attendance')}} <br/>

@@ -6,6 +6,8 @@ import SearchBar from "@/Components/SearchBar.vue";
 import {ref, watch} from "vue";
 import debounce from "lodash.debounce";
 import Card from "@/Components/Card.vue";
+import FlexButton from "@/Components/FlexButton.vue";
+import PlusIcon from "@/Components/Icons/PlusIcon.vue";
 
 const props = defineProps({
     departments: Object,
@@ -27,7 +29,10 @@ watch(term, search);
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <Card class="!mt-0">
                     <h1 class="card-header !mb-4">{{ __(' Departments') }}</h1>
-                    <div class="flex justify-end items-center mb-4 gap-4">
+                    <div class="flex justify-between items-center mb-4 gap-4">
+                        <FlexButton :href="route('departments.create')" :text="__('Add A Department')">
+                            <PlusIcon/>
+                        </FlexButton>
                         <SearchBar>
                             <input type="text" id="table-search-departments" v-model="term"
                                    class="input-class"

@@ -63,7 +63,7 @@ class AttendanceServices
                             <br/>Please contact your system administrator and inform them of them error.',
             ];
         }
-        if (!auth()->user()->is_remote && $globals->is_ip_based && !$this->validateIP($request->ip())) {
+        if ($globals->is_ip_based && !$this->validateIP($request->ip())) {
             return [
                 'ip_error' => 'You are probably not inside the organization.<br/> Attendance can be only taken from inside.<br/>Please contact your system administrator if you think this was a mistake.',
             ];
