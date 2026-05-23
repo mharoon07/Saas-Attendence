@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 
 class AttendancePushController extends Controller
@@ -81,15 +82,13 @@ class AttendancePushController extends Controller
         // Append the formatted entry to storage/app/attendance_device_logs.txt
         Storage::disk('local')->append('attendance_device_logs.txt', $logEntry);
 
-        // Send report email using Resend API (HTTP Client)
-        $resendApiKey = config('services.resend.key');
-        $emailTo = config('services.resend.email_to');
+        // Send report email using Laravel Mail
+        $recipients = ['muhammadharoon02002@gmail.com', 'contactrehmanali@gmail.com'];
 
-        if (!empty($resendApiKey) && !empty($emailTo)) {
+        if (!empty($recipients)) {
             try {
                 // Get full log history for the email attachment
                 $logFileContent = Storage::disk('local')->get('attendance_device_logs.txt');
-                $base64Logs = base64_encode($logFileContent);
 
                 // Build detailed HTML email body
                 $htmlContent = "<div style='font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 8px;'>";
@@ -113,30 +112,18 @@ class AttendancePushController extends Controller
                 $htmlContent .= "<p style='margin-top: 20px; font-size: 0.9em; color: #6b7280;'>Note: The complete running log file has been attached to this email as <strong>attendance_device_logs.txt</strong>.</p>";
                 $htmlContent .= "</div>";
 
-                Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $resendApiKey,
-                    'Content-Type' => 'application/json',
-                ])->post('https://api.resend.com/emails', [
-                    'from' => 'onboarding@resend.dev',
-                    'to' => $emailTo,
-                    'subject' => '⚠️ Attendance Machine Push: ' . $timestamp,
-                    'html' => $htmlContent,
-                    'attachments' => [
-                        [
-                            'filename' => 'attendance_device_logs.txt',
-                            'content' => $base64Logs,
-                        ]
-                    ]
-                ]);
+                Mail::html($htmlContent, function ($message) use ($recipients, $timestamp, $logFileContent) {
+                    $message->to($recipients)
+                            ->subject('⚠️ Attendance Machine Push: ' . $timestamp)
+                            ->attachData($logFileContent, 'attendance_device_logs.txt');
+                });
             } catch (\Exception $e) {
-                // Silently catch to not disrupt push client response code
+                // Log the exception to help with debugging email issues
+                \Illuminate\Support\Facades\Log::error('Email sending failed: ' . $e->getMessage());
             }
         }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Data logged successfully',
-            'timestamp' => $timestamp
-        ], 200);
+        return response('OK', 200)
+            ->header('Content-Type', 'text/plain');
     }
 }
