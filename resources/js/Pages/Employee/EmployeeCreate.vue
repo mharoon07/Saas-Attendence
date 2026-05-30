@@ -289,7 +289,7 @@ const submitShift = () => {
                                         </option>
                                     </select>
                                     <InputError class="mt-2" :message="form.errors.branch_id"/>
-                                    <!-- <p class="text-xs inline ltr:mr-1 rtl:ml-1 "> {{__('Branch not listed?')}} </p>
+                                   <p class="text-xs inline ltr:mr-1 rtl:ml-1 "> {{__('Branch not listed?')}} </p>
                                     <form @submit.prevent="submitBranch" class=" inline">
                                         <GenericModal :modalId="'branchModal'"
                                                       :title="__('Create a new one.')" :modalHeader="__('Create a New Branch')"
@@ -366,7 +366,7 @@ const submitShift = () => {
                                                 </button>
                                             </template>
                                         </GenericModal>
-                                    </form> -->
+                                    </form>  
                                 </div>
 
                                 <div>

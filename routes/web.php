@@ -20,10 +20,8 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::get('employees/archived', [\App\Http\Controllers\EmployeeController::class, 'archivedIndex'])->name('employees.archived');
     Route::resource('employees', \App\Http\Controllers\EmployeeController::class);
     Route::resource('branches', \App\Http\Controllers\BranchController::class);
-    Route::get('stocky-departments', [\App\Http\Controllers\StockyDepartmentController::class, 'index'])->name('stocky-departments.index');
-    Route::get('stocky-departments/create', [\App\Http\Controllers\StockyDepartmentController::class, 'create'])->name('stocky-departments.create');
-    Route::post('stocky-departments', [\App\Http\Controllers\StockyDepartmentController::class, 'store'])->name('stocky-departments.store');
-    Route::resource('departments', \App\Http\Controllers\DepartmentController::class);
+    // Use StockyDepartmentController for the `/departments` routes (replace stocky-departments)
+    Route::resource('departments', \App\Http\Controllers\StockyDepartmentController::class);
     Route::resource('positions', \App\Http\Controllers\PositionController::class);
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
     Route::resource('metrics', \App\Http\Controllers\MetricsController::class);
@@ -60,6 +58,10 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('reports', [\App\Http\Controllers\DashboardController::class, 'reportsIndex'])->name('reports.index');
+    // Report downloads (CSV)
+    Route::get('reports/payroll', [\App\Http\Controllers\ReportController::class, 'payroll'])->name('reports.payroll');
+    Route::get('reports/attendance', [\App\Http\Controllers\ReportController::class, 'attendance'])->name('reports.attendance');
+    Route::get('reports/late', [\App\Http\Controllers\ReportController::class, 'late'])->name('reports.late');
 
     Route::get('my-profile', [\App\Http\Controllers\EmployeeController::class, 'showMyProfile'])->name('my-profile');
     Route::resource('requests', \App\Http\Controllers\RequestController::class)->only(['index', 'show', 'create', 'store']);
@@ -125,4 +127,13 @@ Route::get('/clear-cache', function () {
         return 'Cache clearing failed: ' . $e->getMessage();
     }
 });
+
+/*
+|--------------------------------------------------------------------------
+| ZKTeco / SenseFace ADMS Push Routes
+|--------------------------------------------------------------------------
+*/
+Route::any('/iclock/cdata', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
+Route::any('/iclock/getrequest', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
+Route::any('/attendance-machine-push', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
 

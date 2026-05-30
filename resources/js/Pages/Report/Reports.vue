@@ -9,6 +9,7 @@ import Swal from "sweetalert2";
 const props = defineProps({
     stats: Object,       // dynamic calculated statistics
     employees: Array,   // all active employee records for dropdown filter
+    generatedReports: Array,
     filters: Object,     // active query parameter values
 });
 
@@ -51,34 +52,7 @@ const resetFilters = () => {
     applyFilters();
 };
 
-const mockReportData = computed(() => {
-    const monthLabel = months.find(m => m.value === selectedMonth.value)?.label ?? __('Selected Month');
-    const empLabel = props.stats?.employeeName ?? __('All Employees');
-    
-    return [
-        { 
-            id: 1, 
-            name: `${__('Attendance Summary')} - ${empLabel} (${monthLabel} ${selectedYear.value})`, 
-            type: __('PDF/CSV'), 
-            date: '2026-05-21', 
-            status: __('Generated') 
-        },
-        { 
-            id: 2, 
-            name: `${__('Payroll & Hours Breakdown')} - ${empLabel}`, 
-            type: __('PDF/CSV'), 
-            date: '2026-05-20', 
-            status: __('Generated') 
-        },
-        { 
-            id: 3, 
-            name: `${__('Late Entry / Absence Limit Check')}`, 
-            type: __('CSV'), 
-            date: '2026-05-18', 
-            status: __('Archived') 
-        },
-    ];
-});
+const reportRows = computed(() => props.generatedReports ?? []);
 
 const handleDownload = (reportName) => {
     Swal.fire({
@@ -97,6 +71,50 @@ const handleDownload = (reportName) => {
             confirmButtonColor: '#7c3aed',
         });
     });
+};
+
+// Custom report type selection
+const selectedReportType = ref('attendance');
+const selectedFormat = ref('csv');
+
+const generateCustomReport = () => {
+    const routeMap = {
+        payroll: 'payroll',
+        attendance: 'attendance',
+        late: 'late',
+    };
+
+    const selectedRoute = routeMap[selectedReportType.value];
+    if (!selectedRoute) {
+        handleDownload(`${__('Custom Summary Report')} - ${props.stats.employeeName}`);
+        return;
+    }
+
+    const url = new URL(`/reports/${selectedRoute}`, window.location.origin);
+    url.searchParams.set('month', selectedMonth.value);
+    url.searchParams.set('year', selectedYear.value);
+    url.searchParams.set('employee_id', selectedEmployee.value);
+    url.searchParams.set('format', selectedFormat.value);
+    window.location = url.toString();
+};
+
+const downloadReport = (report) => {
+    if (!report?.has_data) {
+        Swal.fire({
+            icon: 'info',
+            title: __('No Data'),
+            text: __('No records found for selected filters.'),
+            confirmButtonColor: '#7c3aed',
+        });
+        return;
+    }
+
+    const url = new URL(report.download_url, window.location.origin);
+    url.searchParams.set('month', selectedMonth.value);
+    url.searchParams.set('year', selectedYear.value);
+    url.searchParams.set('employee_id', selectedEmployee.value);
+    url.searchParams.set('format', selectedFormat.value);
+    window.location = url.toString();
 };
 </script>
 
@@ -216,10 +234,10 @@ const handleDownload = (reportName) => {
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {{ __('Report Type') }}
                                 </label>
-                                <select class="w-full rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500">
-                                    <option>{{ __('Monthly Attendance Summary') }}</option>
-                                    <option>{{ __('Payroll Breakdown') }}</option>
-                                    <option>{{ __('Late Entry / Early Exit Details') }}</option>
+                                <select v-model="selectedReportType" class="w-full rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                                    <option :value="'attendance'">{{ __('Monthly Attendance Summary') }}</option>
+                                    <option :value="'payroll'">{{ __('Payroll Breakdown') }}</option>
+                                    <option :value="'late'">{{ __('Late Entry / Early Exit Details') }}</option>
                                 </select>
                             </div>
 
@@ -232,9 +250,16 @@ const handleDownload = (reportName) => {
                                     <p><strong>{{ __('Period:') }}</strong> {{ months.find(m => m.value === selectedMonth)?.label }} {{ selectedYear }}</p>
                                 </div>
                             </div>
+                               <div class="mt-2 flex gap-2 items-center">
+                                <label class="text-xs text-gray-500">{{ __('Format') }}:</label>
+                                <select v-model="selectedFormat" class="rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-sm">
+                                    <option value="csv">CSV / Excel</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
+                            </div>
 
                             <button 
-                                @click="handleDownload(`${__('Custom Summary Report')} - ${stats.employeeName}`)"
+                                @click="generateCustomReport"
                                 class="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded shadow transition duration-150 flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
@@ -242,6 +267,7 @@ const handleDownload = (reportName) => {
                                 </svg>
                                 {{ __('Generate & Download') }}
                             </button>
+                         
                         </div>
                     </Card>
 
@@ -262,24 +288,30 @@ const handleDownload = (reportName) => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800 text-sm text-gray-800 dark:text-gray-300">
-                                    <tr v-for="report in mockReportData" :key="report.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                    <tr v-for="report in reportRows" :key="report.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                                         <td class="py-4 px-2 font-medium text-gray-900 dark:text-white">{{ report.name }}</td>
                                         <td class="py-4 px-2 text-center">
                                             <span class="px-2 py-1 text-xs font-semibold rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
-                                                {{ report.type }}
+                                                {{ report.format }}
                                             </span>
                                         </td>
-                                        <td class="py-4 px-2 text-center">{{ report.date }}</td>
+                                        <td class="py-4 px-2 text-center">{{ report.created_at ?? __('No records yet') }}</td>
                                         <td class="py-4 px-2 text-center">
                                             <button 
-                                                @click="handleDownload(report.name)"
-                                                class="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold inline-flex items-center gap-1"
-                                            >
+                                                    @click="downloadReport(report)"
+                                                    :disabled="!report.has_data"
+                                                    class="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                                 </svg>
-                                                {{ __('Download') }}
+                                                {{ report.has_data ? __('Download') : __('No Data') }}
                                             </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="reportRows.length === 0">
+                                        <td colspan="4" class="py-6 text-center text-gray-500 dark:text-gray-400">
+                                            {{ __('No reports available for current filters.') }}
                                         </td>
                                     </tr>
                                 </tbody>

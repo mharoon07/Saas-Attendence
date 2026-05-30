@@ -16,7 +16,7 @@ const props = defineProps({
 
 const term = ref(props.filters.term || '');
 const search = debounce(() => {
-    router.visit(route('stocky-departments.index', {term: term.value}),
+    router.visit(route('departments.index', {term: term.value}),
         {preserveState: true, preserveScroll: true})
 }, 500);
 watch(term, search);
@@ -30,7 +30,7 @@ watch(term, search);
                 <Card class="!mt-0">
                     <h1 class="card-header !mb-4">{{ __(' Departments') }}</h1>
                     <div class="flex justify-between items-center mb-4 gap-4">
-                        <FlexButton :href="route('stocky-departments.create')" :text="__('Add A Department')">
+                        <FlexButton :href="route('departments.create')" :text="__('Add A Department')">
                             <PlusIcon/>
                         </FlexButton>
                         <SearchBar>
@@ -41,7 +41,7 @@ watch(term, search);
                     </div>
 
                     <DataTable
-                        :controller="'stocky-departments'"
+                        :controller="'departments'"
                         :head='[__("ID"), __("Name"), __("Code")]'
                         :data="departments"
                         :hasActions="false"

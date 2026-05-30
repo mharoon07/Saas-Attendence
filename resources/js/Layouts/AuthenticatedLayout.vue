@@ -56,8 +56,8 @@ const toggleDark = useToggle(isDark);
                 </SidebarListItem>
 
                 <SidebarListItem :item-name="__('Departments')"
-                                 link="stocky-departments.index"
-                                 :active-links="['stocky-departments.index', 'stocky-departments.create']"
+                                 link="departments.index"
+                                 :active-links="['departments.index', 'departments.create']"
                 >
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>

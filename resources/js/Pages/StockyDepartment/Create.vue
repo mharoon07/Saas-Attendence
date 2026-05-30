@@ -22,7 +22,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('stocky-departments.store'), {
+    form.post(route('departments.store'), {
         preserveScroll: true,
         onError: () => {
             useToast().error(__('Error Creating Department'));

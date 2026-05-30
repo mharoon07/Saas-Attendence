@@ -69,7 +69,7 @@ class StockyDepartmentTest extends TestCase
 
     public function test_guest_cannot_access_stocky_departments()
     {
-        $response = $this->get('/stocky-departments');
+        $response = $this->get('/departments');
         $response->assertRedirect('/login');
     }
 
@@ -83,7 +83,7 @@ class StockyDepartmentTest extends TestCase
             'role_id' => 2, // Normal employee
         ]);
 
-        $response = $this->actingAs($employee)->get('/stocky-departments');
+        $response = $this->actingAs($employee)->get('/departments');
         $response->assertStatus(403); // Forbidden by admin role middleware
     }
 
@@ -113,7 +113,7 @@ class StockyDepartmentTest extends TestCase
             ]
         ]);
 
-        $response = $this->actingAs($admin)->get('/stocky-departments');
+        $response = $this->actingAs($admin)->get('/departments');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -149,7 +149,7 @@ class StockyDepartmentTest extends TestCase
             ]
         ]);
 
-        $response = $this->actingAs($admin)->get('/stocky-departments?term=Sales');
+        $response = $this->actingAs($admin)->get('/departments?term=Sales');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -169,7 +169,7 @@ class StockyDepartmentTest extends TestCase
             'role_id' => 1,
         ]);
 
-        $response = $this->actingAs($admin)->get('/stocky-departments/create');
+        $response = $this->actingAs($admin)->get('/departments/create');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -188,12 +188,12 @@ class StockyDepartmentTest extends TestCase
             'role_id' => 1,
         ]);
 
-        $response = $this->actingAs($admin)->post('/stocky-departments', [
+        $response = $this->actingAs($admin)->post('/departments', [
             'department' => 'Engineering',
             'code' => 'ENG01',
         ]);
 
-        $response->assertRedirect('/stocky-departments');
+        $response->assertRedirect('/departments');
 
         $this->assertDatabaseHas('departments', [
             'department' => 'Engineering',
@@ -220,14 +220,14 @@ class StockyDepartmentTest extends TestCase
         ]);
 
         // Attempting duplicate department name
-        $response = $this->actingAs($admin)->post('/stocky-departments', [
+        $response = $this->actingAs($admin)->post('/departments', [
             'department' => 'Engineering',
             'code' => 'ENG02',
         ]);
         $response->assertSessionHasErrors(['department']);
 
         // Attempting duplicate code
-        $response = $this->actingAs($admin)->post('/stocky-departments', [
+        $response = $this->actingAs($admin)->post('/departments', [
             'department' => 'Design',
             'code' => 'ENG01',
         ]);

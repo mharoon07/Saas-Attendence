@@ -19,7 +19,7 @@ class MonthlyPayrollsHandle
         // Generate Payrolls
         $date = Carbon::now()->toDateString();
 
-        foreach (Emplouee::cursor() as $employee) {
+        foreach (Employee::cursor() as $employee) {
         
             if (!$employee) {
                 continue;

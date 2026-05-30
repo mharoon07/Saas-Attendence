@@ -206,12 +206,13 @@ class CommonServices extends Controller
     // Expects date to be in YYYY-MM-DD format
     public function isDayOff($date): bool
     {
-        return $this->isHoliday($date) || $this->isWeekend($date);
+        // Only consider calendar holidays as off days. Weekends are no longer treated as automatic off days here.
+        return $this->isHoliday($date);
     }
     public function isTodayOff(): bool
     {
         $date = Carbon::now()->toDateString();
-        return $this->isHoliday($date) || $this->isWeekend($date);
+        return $this->isHoliday($date);
     }
 
 }

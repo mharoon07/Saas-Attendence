@@ -70,6 +70,6 @@ class StockyDepartmentController extends Controller
             'department_head' => null,
         ]);
 
-        return to_route('stocky-departments.index');
+        return to_route('departments.index');
     }
 }

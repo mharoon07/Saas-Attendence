@@ -9,9 +9,7 @@ import GoBackNavLink from "@/Components/GoBackNavLink.vue";
     <NavLink :href="route('branches.index')" :active="route().current('branches.index') || route().current('branches.edit') || route().current('branches.show') || route().current('branches.create') ">
         {{__('Branches')}}
     </NavLink>
-    <NavLink :href="route('departments.index')" :active="route().current('departments.index') || route().current('departments.edit') || route().current('departments.show') ||route().current('departments.create')">
-        {{__('Departments')}}
-    </NavLink>
+    
     <NavLink :href="route('positions.index')" :active="route().current('positions.index') || route().current('positions.edit') || route().current('positions.show') ||route().current('positions.create')">
         {{__('Positions')}}
     </NavLink>

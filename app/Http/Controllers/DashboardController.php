@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -137,9 +138,67 @@ class DashboardController extends Controller
             ];
         }
 
+        $payrollQuery = \App\Models\Payroll::query()
+            ->whereYear('due_date', $year)
+            ->whereMonth('due_date', $month);
+
+        $attendanceQuery = \App\Models\Attendance::query()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        $lateQuery = \App\Models\Attendance::query()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->where('status', 'late');
+
+        if ($employeeId !== 'all') {
+            $payrollQuery->where('employee_id', $employeeId);
+            $attendanceQuery->where('employee_id', $employeeId);
+            $lateQuery->where('employee_id', $employeeId);
+        }
+
+        $payrollCount = (clone $payrollQuery)->count();
+        $attendanceCount = (clone $attendanceQuery)->count();
+        $lateCountForReports = (clone $lateQuery)->count();
+
+        $payrollLatest = (clone $payrollQuery)->latest('updated_at')->value('updated_at');
+        $attendanceLatest = (clone $attendanceQuery)->latest('updated_at')->value('updated_at');
+        $lateLatest = (clone $lateQuery)->latest('updated_at')->value('updated_at');
+
+        $generatedReports = [
+            [
+                'id' => 'attendance',
+                'name' => 'Monthly Attendance Summary',
+                'format' => 'CSV/PDF',
+                'created_at' => $attendanceLatest ? Carbon::parse($attendanceLatest)->toDateString() : null,
+                'has_data' => $attendanceCount > 0,
+                'records' => $attendanceCount,
+                'download_url' => route('reports.attendance', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+            [
+                'id' => 'payroll',
+                'name' => 'Payroll Breakdown',
+                'format' => 'CSV/PDF',
+                'created_at' => $payrollLatest ? Carbon::parse($payrollLatest)->toDateString() : null,
+                'has_data' => $payrollCount > 0,
+                'records' => $payrollCount,
+                'download_url' => route('reports.payroll', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+            [
+                'id' => 'late',
+                'name' => 'Late Entry / Early Exit Details',
+                'format' => 'CSV/PDF',
+                'created_at' => $lateLatest ? Carbon::parse($lateLatest)->toDateString() : null,
+                'has_data' => $lateCountForReports > 0,
+                'records' => $lateCountForReports,
+                'download_url' => route('reports.late', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+        ];
+
         return Inertia::render('Report/Reports', [
             'stats' => $stats,
             'employees' => $employees,
+            'generatedReports' => $generatedReports,
             'filters' => [
                 'month' => $month,
                 'year' => $year,

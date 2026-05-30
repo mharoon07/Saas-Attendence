@@ -12,6 +12,8 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        'api/iclock/cdata',
+        'api/iclock/getrequest',
+        'api/attendance-machine-push',
     ];
 }
