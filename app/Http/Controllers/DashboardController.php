@@ -95,7 +95,7 @@ class DashboardController extends Controller
         } else {
             // General stats
             $empCount = \App\Models\Employee::count();
-            $deptCount = \App\Models\Department::count();
+            $deptCount = \App\Models\StockyDepartment::count();
 
             $attendedDays = \App\Models\Attendance::whereYear('date', $year)
                 ->whereMonth('date', $month)
