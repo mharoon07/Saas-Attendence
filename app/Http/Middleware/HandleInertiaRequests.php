@@ -33,26 +33,68 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? $request->user()->only('id', 'name', 'email')
-                        + ["roles"=>$request->user()->getRoleNames()] : null,
+                'user' => $this->sharedAuthUser($request),
             ],
             'ziggy' => function () use ($request) {
                 return array_merge((new Ziggy)->toArray(), [
                     'location' => $request->url(),
                 ]);
             },
-            'ui' => [
-                'empCount'=> Employee::count(),
-                // Admin sees pending requests count in the sidebar, while employees see only updated requests count.
-                'reqCount'=> $request->user() ? ( isAdmin() ? \App\Models\Request::where('status', 0)->count() :
-                                        \App\Models\Request::where('employee_id', auth()->user()->id)
-                                            ->where('status', '!=', 0)->where('is_seen', false)->count()) : null,
-            ],
+            'ui' => $this->sharedUiCounts($request),
             'session' => [
                 'update_in_progress' => session('update_in_progress'),
             ],
             'locale'=> config('app.locale'),
             'timezone'=> config('app.timezone'),
         ]);
+    }
+
+    protected function sharedAuthUser(Request $request): ?array
+    {
+        $user = $request->user();
+        if (!$user) {
+            return null;
+        }
+
+        try {
+            return [
+                'id' => $user->id,
+                'name' => $user->name ?? trim(($user->firstname ?? '') . ' ' . ($user->lastname ?? '')),
+                'email' => $user->email,
+                'roles' => $user->getRoleNames(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'id' => $user->id,
+                'name' => $user->email,
+                'email' => $user->email,
+                'roles' => [],
+            ];
+        }
+    }
+
+    protected function sharedUiCounts(Request $request): array
+    {
+        try {
+            $reqCount = null;
+            if ($request->user()) {
+                $reqCount = isAdmin()
+                    ? \App\Models\Request::where('status', 0)->count()
+                    : \App\Models\Request::where('employee_id', auth()->user()->id)
+                        ->where('status', '!=', 0)
+                        ->where('is_seen', false)
+                        ->count();
+            }
+
+            return [
+                'empCount' => Employee::count(),
+                'reqCount' => $reqCount,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'empCount' => 0,
+                'reqCount' => null,
+            ];
+        }
     }
 }

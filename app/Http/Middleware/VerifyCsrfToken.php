@@ -15,5 +15,8 @@ class VerifyCsrfToken extends Middleware
         'api/iclock/cdata',
         'api/iclock/getrequest',
         'api/attendance-machine-push',
+        'iclock/cdata',
+        'iclock/getrequest',
+        'attendance-machine-push',
     ];
 }

@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Models\Employee;
+use App\Models\Attendance;
+use Carbon\Carbon;
 
 class AttendancePushController extends Controller
 {
@@ -136,6 +139,78 @@ class AttendancePushController extends Controller
                 'device_mail_errors.txt',
                 $e->getMessage()
             );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Process ZKTeco Attendance Log
+        |--------------------------------------------------------------------------
+        */
+        if ($request->query('table') === 'ATTLOG') {
+            $rawBody = $request->getContent();
+            if (!empty($rawBody)) {
+                $lines = explode("\n", trim($rawBody));
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (empty($line)) continue;
+                    
+                    $parts = explode("\t", $line);
+                    if (count($parts) >= 2) {
+                        $employeeId = trim($parts[0]);
+                        $timestampStr = trim($parts[1]);
+                        
+                        try {
+                            $punchTime = Carbon::createFromFormat('Y-m-d H:i:s', $timestampStr);
+                            $date = $punchTime->toDateString();
+                            
+                            $employee = Employee::find($employeeId);
+                            if ($employee) {
+                                $attendance = Attendance::where('employee_id', $employee->id)
+                                    ->where('date', $date)
+                                    ->first();
+                                    
+                                if (!$attendance) {
+                                    $shiftStartTime = null;
+                                    if ($employee->activeShift()) {
+                                        $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)->setDateFrom($punchTime);
+                                    }
+                                    
+                                    $lateMargin = 15;
+                                    $status = 'on_time';
+                                    if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMargin) {
+                                        $status = 'late';
+                                    }
+                                    
+                                    Attendance::create([
+                                        'employee_id' => $employee->id,
+                                        'date' => $date,
+                                        'status' => $status,
+                                        'sign_in_time' => $punchTime,
+                                        'notes' => 'Machine Punch (Sign In)',
+                                    ]);
+                                } else {
+                                    $existingSignIn = $attendance->sign_in_time ? Carbon::parse($attendance->sign_in_time) : null;
+                                    $existingSignOff = $attendance->sign_off_time ? Carbon::parse($attendance->sign_off_time) : null;
+                                    
+                                    if (!$existingSignIn || $punchTime->lt($existingSignIn)) {
+                                        $attendance->sign_in_time = $punchTime;
+                                        $attendance->notes = trim($attendance->notes . ' | Earliest punch used for Sign In', ' | ');
+                                        $attendance->save();
+                                    } else if (!$existingSignOff || $punchTime->gt($existingSignOff)) {
+                                        if ($punchTime->diffInMinutes($existingSignIn) > 5) {
+                                            $attendance->sign_off_time = $punchTime;
+                                            $attendance->notes = trim($attendance->notes . ' | Machine Punch (Sign Off)', ' | ');
+                                            $attendance->save();
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("ZKTeco Attendance parsing error: " . $e->getMessage());
+                        }
+                    }
+                }
+            }
         }
 
         /*
