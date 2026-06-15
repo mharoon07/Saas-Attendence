@@ -316,5 +316,46 @@ class Employee extends Authenticatable
         ];
     }
 
+    public function periodHours($startDate, $endDate): array
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        $commonServices = new \App\Services\CommonServices();
+        $periodDates = [$start->year, $start->month, $start->day, $end->year, $end->month, $end->day];
+
+        $globalSettings = Globals::first();
+        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+        if (!is_array($weekendOffDays)) {
+            $weekendOffDays = ['friday', 'saturday'];
+        }
+
+        $totalDays = $start->diffInDays($end) + 1;
+
+        $holidaysCount = $commonServices->countHolidays($this->hired_on, $periodDates);
+        $workingDays = $totalDays - $holidaysCount -
+            $commonServices->calcOffDays($weekendOffDays, $this->hired_on, $periodDates);
+
+        $attended = $this->getAttended();
+
+        $periodAttendance = (clone $attended)->whereBetween('date', [$start->toDateString(), $end->toDateString()])->get();
+
+        $actualHours =
+            $periodAttendance->sum(function ($attendance) {
+                $signInTime = Carbon::parse($attendance->sign_in_time);
+                $signOffTime = Carbon::parse($attendance->sign_off_time);
+                return $signInTime->diffInMinutes($signOffTime) / 60;
+            });
+
+        $shiftHours = $this->activeShiftPeriod();
+        $expectedHours = $workingDays * $shiftHours;
+
+        return [
+            "expectedHours" => $expectedHours,
+            "actualHours" => $actualHours,
+            "hoursDifference" => $actualHours - $expectedHours,
+        ];
+    }
+
 
 }

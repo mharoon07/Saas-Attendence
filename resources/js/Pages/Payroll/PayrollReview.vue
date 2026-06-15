@@ -166,7 +166,11 @@ const submit = () => {
                             <DT>{{ __('Base Salary') }}</DT>
                             <DD>{{ payroll.currency + ' ' + parseInt(payroll.base).toLocaleString() }}</DD>
                         </DescriptionListItem>
-                        <DescriptionListItem>
+                        <DescriptionListItem v-if="payroll.period_start && payroll.period_end">
+                            <DT>{{ __('Payroll Period') }}</DT>
+                            <DD>{{ payroll.period_start }} - {{ payroll.period_end }}</DD>
+                        </DescriptionListItem>
+                        <DescriptionListItem v-else>
                             <DT>{{ __('Due Date') }}</DT>
                             <DD>{{ payroll.due_date }}</DD>
                         </DescriptionListItem>

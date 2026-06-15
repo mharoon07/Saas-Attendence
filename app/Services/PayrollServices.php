@@ -42,9 +42,14 @@ class PayrollServices
             return $this->quickPay($payroll, $res);
         }
 
-        $shiftDifferentials = ($payroll->employee->activeShift()->shift_payment_multiplier - 1) * $payroll->base;
-        $hours = $payroll->employee->monthHours(Carbon::parse($payroll->due_date)->subMonthNoOverflow()->year,
-            Carbon::parse($payroll->due_date)->subMonthNoOverflow()->month);
+        $shiftDifferentials = (($payroll->employee->activeShift()?->shift_payment_multiplier ?? 1) - 1) * $payroll->base;
+        
+        if ($payroll->period_start && $payroll->period_end) {
+            $hours = $payroll->employee->periodHours($payroll->period_start, $payroll->period_end);
+        } else {
+            $hours = $payroll->employee->monthHours(Carbon::parse($payroll->due_date)->subMonthNoOverflow()->year,
+                Carbon::parse($payroll->due_date)->subMonthNoOverflow()->month);
+        }
         $overtime = $hours['hoursDifference'] > 0 ? $hours['hoursDifference'] * $res['extra_hour_rate'] : 0;
         $undertime = $hours['hoursDifference'] < 0 ? $hours['hoursDifference'] * $res['negative_hour_rate'] * -1 : 0; // * -1 to get +ve value, as hoursDifference is -ve
         $income_tax = (Globals::first()->income_tax / 100) * $payroll->base;

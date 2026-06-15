@@ -69,6 +69,7 @@ class PayrollController extends Controller
             'payrolls' => $payrolls->paginate(config('constants.data.pagination_count')),
             "dateParam" => $date,
             "statusParam" => $statusParam,
+            "employees" => \App\Models\Employee::select('id', 'name')->get(),
         ]);
     }
 
@@ -94,20 +95,117 @@ class PayrollController extends Controller
     public function edit(string $id)
     {
         $payroll = Payroll::with('employee')->findOrFail($id);
-        $payrollDate = Carbon::parse($payroll->due_date)->subMonthNoOverflow();
-
         $commonServices = new CommonServices();
-        $dates = [$payrollDate->year, $payrollDate->month, 1, $payrollDate->year, $payrollDate->month, $payrollDate->daysInMonth];
+
+        if ($payroll->period_start && $payroll->period_end) {
+            $startDate = Carbon::parse($payroll->period_start);
+            $endDate = Carbon::parse($payroll->period_end);
+            $totalDays = $startDate->diffInDays($endDate) + 1;
+            $dates = [$startDate->year, $startDate->month, $startDate->day, $endDate->year, $endDate->month, $endDate->day];
+            
+            $globalSettings = Globals::first();
+            $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
+            if (!is_array($weekendOffDays)) {
+                $weekendOffDays = ['friday', 'saturday'];
+            }
+            $offDays = $commonServices->calcOffDays($weekendOffDays, $payroll->employee->hired_on, $dates);
+            $holidays = $commonServices->countHolidays($payroll->employee->hired_on, $dates);
+            
+            $month_stats = [
+                'attendable_days' => $totalDays - $offDays - $holidays,
+                'attended' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
+                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
+                    ->where('status', 'on_time')
+                    ->count(),
+                'absented' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
+                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
+                    ->where('status', 'missed')
+                    ->count(),
+                'late' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
+                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
+                    ->where('status', 'late')
+                    ->count(),
+            ];
+            $hours = $payroll->employee->periodHours($payroll->period_start, $payroll->period_end);
+        } else {
+            $payrollDate = Carbon::parse($payroll->due_date)->subMonthNoOverflow();
+            $dates = [$payrollDate->year, $payrollDate->month, 1, $payrollDate->year, $payrollDate->month, $payrollDate->daysInMonth];
+            $month_stats = $commonServices->getMonthStats($payroll->employee, $dates);
+            $hours = $payroll->employee->monthHours($payrollDate->year, $payrollDate->month);
+        }
+
         return Inertia::render('Payroll/PayrollReview', [
             'payroll' => $payroll,
-            "month_stats" => $commonServices->getMonthStats($payroll->employee, $dates),
+            "month_stats" => $month_stats,
             'additions' => $payroll->additions, // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
             'deductions' => $payroll->deductions, // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
             'income_tax' => Globals::select('income_tax')->get()->first(), // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
-            'shift_modifier' => $payroll->employee->activeShift()->shift_payment_multiplier,
-            'hours' => $payroll->employee->monthHours($payrollDate->year, $payrollDate->month),
+            'shift_modifier' => $payroll->employee->activeShift()?->shift_payment_multiplier ?? 1,
+            'hours' => $hours,
             'metrics' => Metric::where('created_at', '<=', $payroll->created_at)->get(),
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'period_start' => 'required|date',
+            'period_end' => 'required|date|after_or_equal:period_start',
+            'employee_id' => 'nullable|exists:employees,id',
+        ]);
+
+        $startDate = Carbon::parse($request->period_start)->toDateString();
+        $endDate = Carbon::parse($request->period_end)->toDateString();
+        
+        $employees = $request->employee_id ? \App\Models\Employee::where('id', $request->employee_id)->get() : \App\Models\Employee::all();
+
+        foreach ($employees as $employee) {
+            $employeeStartDate = Carbon::parse($startDate);
+            $employeeEndDate = Carbon::parse($endDate);
+
+            // Find overlapping payrolls for this employee
+            $existingPayrolls = Payroll::where('employee_id', $employee->id)
+                ->where('period_start', '<=', $employeeEndDate->toDateString())
+                ->where('period_end', '>=', $employeeStartDate->toDateString())
+                ->orderBy('period_end', 'desc')
+                ->get();
+
+            // If there's an overlap, adjust the start date to the day after the latest period_end
+            if ($existingPayrolls->isNotEmpty()) {
+                $latestPeriodEnd = Carbon::parse($existingPayrolls->first()->period_end);
+                
+                // If the entire requested period is already covered, skip generating
+                if ($latestPeriodEnd->greaterThanOrEqualTo($employeeEndDate)) {
+                    continue; // Skip this employee
+                }
+                
+                // Adjust start date
+                $employeeStartDate = $latestPeriodEnd->addDay();
+            }
+
+            $payroll = Payroll::create([
+                'employee_id' => $employee->id,
+                'currency' => $employee->salary()[0],
+                'base' => $employee->salary()[1],
+                'total_payable' => $employee->salary()[1],
+                'performance_multiplier' => 1,
+                "due_date" => Carbon::now()->toDateString(),
+                'period_start' => $employeeStartDate->toDateString(),
+                'period_end' => $employeeEndDate->toDateString(),
+            ]);
+
+            \App\Models\Addition::create([
+                'payroll_id' => $payroll->id,
+                "due_date" => Carbon::now()->toDateString(),
+            ]);
+
+            \App\Models\Deduction::create([
+                'payroll_id' => $payroll->id,
+                "due_date" => Carbon::now()->toDateString(),
+            ]);
+        }
+        
+        return redirect()->back();
     }
 
     /**
@@ -134,5 +232,45 @@ class PayrollController extends Controller
     public function destroy(string $id)
     {
         Payroll::findOrFail($id)->delete();
+    }
+
+    /**
+     * Export Payroll to CSV.
+     */
+    public function export(string $id)
+    {
+        $payroll = Payroll::with('employee')->findOrFail($id);
+        
+        $fileName = 'Payroll_' . $payroll->employee->name . '_' . $payroll->period_start . '_to_' . $payroll->period_end . '.csv';
+        
+        $headers = array(
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $columns = array('Payroll ID', 'Employee Name', 'Period Start', 'Period End', 'Base Salary', 'Total Payable', 'Status', 'Due Date');
+
+        $callback = function() use($payroll, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            
+            fputcsv($file, array(
+                $payroll->id,
+                $payroll->employee->name,
+                $payroll->period_start,
+                $payroll->period_end,
+                $payroll->currency . ' ' . $payroll->base,
+                $payroll->currency . ' ' . $payroll->total_payable,
+                $payroll->status ? "Paid" : ($payroll->is_reviewed ? "Reviewed" : "Pending Review"),
+                $payroll->due_date
+            ));
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

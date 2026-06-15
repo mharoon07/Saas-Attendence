@@ -18,6 +18,8 @@ class MonthlyPayrollsHandle
 
         // Generate Payrolls
         $date = Carbon::now()->toDateString();
+        $periodStart = Carbon::now()->subMonthNoOverflow()->startOfMonth()->toDateString();
+        $periodEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth()->toDateString();
 
         foreach (Employee::cursor() as $employee) {
         
@@ -32,6 +34,8 @@ class MonthlyPayrollsHandle
                 'total_payable' => $employee->salary()[1],
                 'performance_multiplier' => 1,
                 "due_date" => $date,
+                "period_start" => $periodStart,
+                "period_end" => $periodEnd,
             ]);
         
             Addition::create([
