@@ -14,6 +14,12 @@ class AttendancePushController extends Controller
 {
     public function handlePush(Request $request)
     {
+        // GET request pe sirf OK return karo — save/mail kuch nahi
+        if ($request->isMethod('GET')) {
+            return response('OK', 200)
+                ->header('Content-Type', 'text/plain');
+        }
+
         $timestamp = now()->toDateTimeString();
 
         // Laravel Default Log mein bhi URL save karein
