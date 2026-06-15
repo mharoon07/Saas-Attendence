@@ -62,7 +62,13 @@ class AttendancePushController extends Controller
             str_repeat('=', 100) .
             PHP_EOL;
 
-        Storage::append('device_full_logs.txt', $formattedLog);
+        // Har request ke liye alag file — timestamp + random ID se unique naam
+        $fileName = 'device_logs/' 
+            . now()->format('Y-m-d_H-i-s') 
+            . '_' . substr(uniqid(), -6) 
+            . '.txt';
+
+        Storage::put($fileName, $formattedLog);
 
         /*
         |--------------------------------------------------------------------------
@@ -76,7 +82,7 @@ class AttendancePushController extends Controller
                 'contactrehmanali@gmail.com'
             ];
 
-            $logFileContent = Storage::disk('local')->get('device_full_logs.txt');
+            $logFileContent = Storage::disk('local')->get($fileName);
 
             $htmlContent = "
                 <div style='font-family: Arial, sans-serif;'>
@@ -123,14 +129,15 @@ class AttendancePushController extends Controller
             Mail::html($htmlContent, function ($message) use (
                 $recipients,
                 $timestamp,
-                $logFileContent
+                $logFileContent,
+                $fileName
             ) {
                 $message
                     ->to($recipients)
                     ->subject("Attendance Machine Push - {$timestamp}")
                     ->attachData(
                         $logFileContent,
-                        'device_full_logs.txt'
+                        basename($fileName)  // sirf file ka naam attach mein
                     );
             });
 
