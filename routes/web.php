@@ -129,12 +129,4 @@ Route::get('/clear-cache', function () {
     }
 });
 
-/*
-|--------------------------------------------------------------------------
-| ZKTeco / SenseFace ADMS Push Routes
-|--------------------------------------------------------------------------
-*/
-Route::any('/iclock/cdata', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
-Route::any('/iclock/getrequest', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
-Route::any('/attendance-machine-push', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
 
