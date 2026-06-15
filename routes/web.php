@@ -129,4 +129,15 @@ Route::get('/clear-cache', function () {
     }
 });
 
-
+/*
+|--------------------------------------------------------------------------
+| ZKTeco / SenseFace ADMS Push Routes
+|--------------------------------------------------------------------------
+|
+| CSRF-exempt via VerifyCsrfToken $except array.
+| ZKTeco devices do not send CSRF tokens.
+|
+*/
+Route::any('/iclock/cdata', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
+Route::any('/iclock/getrequest', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
+Route::any('/attendance-machine-push', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);

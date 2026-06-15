@@ -35,13 +35,6 @@ class RouteServiceProvider extends ServiceProvider
 
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
-
-            // ZKTeco device routes — no /api prefix, no CSRF
-            Route::middleware([
-                \App\Http\Middleware\EncryptCookies::class,
-                \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-                \Illuminate\Session\Middleware\StartSession::class,
-            ])->group(base_path('routes/device.php'));
         });
     }
 }
