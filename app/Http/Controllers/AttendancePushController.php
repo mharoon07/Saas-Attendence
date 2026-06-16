@@ -14,8 +14,11 @@ class AttendancePushController extends Controller
 {
     public function handlePush(Request $request)
     {
-        // GET request pe sirf OK return karo — save/mail kuch nahi
-        if ($request->isMethod('GET')) {
+        // Sirf empty GET skip karo (device polling) — data wali GET/POST dono process karo
+        $hasBody = !empty($request->getContent());
+        $hasAttlog = $request->query('table') === 'ATTLOG';
+
+        if ($request->isMethod('GET') && !$hasBody && !$hasAttlog) {
             return response('OK', 200)
                 ->header('Content-Type', 'text/plain');
         }
@@ -74,7 +77,15 @@ class AttendancePushController extends Controller
             . '_' . substr(uniqid(), -6) 
             . '.txt';
 
-        Storage::put($fileName, $formattedLog);
+        $saveResult = 'NOT_ATTEMPTED';
+        $saveError  = null;
+        try {
+            Storage::put($fileName, $formattedLog);
+            $saveResult = Storage::exists($fileName) ? 'FILE_SAVED_OK' : 'PUT_OK_BUT_FILE_MISSING';
+        } catch (\Exception $e) {
+            $saveResult = 'EXCEPTION';
+            $saveError  = $e->getMessage();
+        }
 
         /*
         |--------------------------------------------------------------------------
