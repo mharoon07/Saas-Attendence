@@ -67,8 +67,8 @@ const props = defineProps({
                 v-for="(value) in data.data" :key="value.id">
                 <td class="px-6 py-4" v-for="(val, key) in value" :key="key">
                     <div v-if="hasLink">
-                        <Link v-if="hasCustomParams" :href="route(controller + '.show', { [customParamsHeader]: value[Object.keys(value)[customParamsIndex]] } )">{{ val ?? undefinedText }}</Link>
-                        <Link v-else :href="route(controller + '.show', { id: value.id } )">{{ val ?? undefinedText }}</Link>
+                        <Link v-if="hasCustomParams" :href="route(controller + '.show', { [customParamsHeader]: value[Object.keys(value)[customParamsIndex]] } )" class="font-medium text-purple-600 dark:text-purple-500 hover:underline">{{ val ?? undefinedText }}</Link>
+                        <Link v-else :href="route(controller + '.show', { id: value.id } )" class="font-medium text-purple-600 dark:text-purple-500 hover:underline">{{ val ?? undefinedText }}</Link>
                     </div>
                     <p v-else>{{ val ?? undefinedText }} </p>
                 </td>
