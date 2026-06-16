@@ -209,11 +209,13 @@ class AttendancePushController extends Controller
                         $punchTime = Carbon::createFromFormat('Y-m-d H:i:s', $timestampStr);
                         $date      = $punchTime->toDateString();
 
-                        // ✅ Match by device_employee_id (the PIN enrolled on the machine)
-                        $employee = Employee::where('device_employee_id', $devicePin)->first();
+                        // ✅ Match by database primary ID or device_employee_id (the PIN enrolled on the machine)
+                        $employee = Employee::where('id', $devicePin)
+                            ->orWhere('device_employee_id', $devicePin)
+                            ->first();
 
                         if (!$employee) {
-                            Log::warning("ZKTeco: No employee found for device PIN [{$devicePin}] — assign device_employee_id in employee settings.");
+                            Log::warning("ZKTeco: No employee found for ID or device PIN [{$devicePin}].");
                             continue;
                         }
 
