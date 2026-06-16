@@ -133,11 +133,42 @@ Route::get('/clear-cache', function () {
 |--------------------------------------------------------------------------
 | ZKTeco / SenseFace ADMS Push Routes
 |--------------------------------------------------------------------------
-|
-| CSRF-exempt via VerifyCsrfToken $except array.
-| ZKTeco devices do not send CSRF tokens.
-|
 */
 Route::any('/iclock/cdata', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
 Route::any('/iclock/getrequest', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
 Route::any('/attendance-machine-push', [\App\Http\Controllers\AttendancePushController::class, 'handlePush']);
+
+// TEMPORARY DEBUG ROUTE — delete after fixing
+Route::get('/debug-storage', function () {
+    $results = [];
+
+    // 1. Storage path
+    $results['storage_path'] = storage_path('app');
+
+    // 2. Is writable?
+    $results['is_writable'] = is_writable(storage_path('app'));
+
+    // 3. Try writing a test file
+    try {
+        \Illuminate\Support\Facades\Storage::put('debug_test.txt', 'test write at ' . now());
+        $results['write_test'] = 'SUCCESS — file created';
+    } catch (\Exception $e) {
+        $results['write_test'] = 'FAILED: ' . $e->getMessage();
+    }
+
+    // 4. Try writing to device_logs folder
+    try {
+        \Illuminate\Support\Facades\Storage::put('device_logs/debug_test.txt', 'test write at ' . now());
+        $results['device_logs_write'] = 'SUCCESS — file created';
+    } catch (\Exception $e) {
+        $results['device_logs_write'] = 'FAILED: ' . $e->getMessage();
+    }
+
+    // 5. Check if AttendancePushController exists
+    $results['controller_exists'] = class_exists(\App\Http\Controllers\AttendancePushController::class);
+
+    // 6. PHP error log
+    $results['php_version'] = PHP_VERSION;
+
+    return response()->json($results, 200, [], JSON_PRETTY_PRINT);
+});
