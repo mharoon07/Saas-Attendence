@@ -118,7 +118,7 @@ class EmployeeController extends Controller
                 ->select('employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
                     'employees.address', 'employees.bank_acc_no', 'departments.name as department_name',
                     'departments.id as department_id', 'branches.id as branch_id', 'branches.name as branch_name',
-                    'employees.hired_on')
+                    'employees.hired_on', 'employees.device_employee_id')
                 ->first(),
         ]);
     }
@@ -136,7 +136,7 @@ class EmployeeController extends Controller
                     'employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
                     'employees.address', 'employees.bank_acc_no', 'employees.hired_on',
                     'employees.department_id', 'employees.branch_id',
-                    'branches.name as branch_name'
+                    'branches.name as branch_name', 'employees.device_employee_id'
                 )
                 ->first(),
             'departments' => StockyDepartment::select(['id', 'department as name'])->orderBy('department')->get(),

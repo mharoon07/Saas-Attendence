@@ -31,6 +31,7 @@ class EmployeeServices
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
             'password' => $res['password'],
+            'device_employee_id' => !empty($res['device_employee_id']) ? $res['device_employee_id'] : null,
         ]);
 
         // Salary Registration
@@ -96,6 +97,7 @@ class EmployeeServices
             'hired_on' => $res['hired_on'],
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
+            'device_employee_id' => !empty($res['device_employee_id']) ? $res['device_employee_id'] : null,
         ]);
 
         // Update Shifts, Salary, Position, and Permissions

@@ -42,6 +42,7 @@ Class ValidationServices extends Controller {
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
+            'device_employee_id' => ['nullable', 'string', 'max:20', 'unique:employees'],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
@@ -65,6 +66,7 @@ Class ValidationServices extends Controller {
             'bank_acc_no' => ['iban', 'nullable'],
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
+            'device_employee_id' => ['nullable', 'string', 'max:20', 'unique:employees,device_employee_id,'.$id],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
