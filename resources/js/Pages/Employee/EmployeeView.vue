@@ -172,10 +172,7 @@ const computedManages = computed(() => {
                             <DD>{{ (employee.roles.length === 0) ? __('Not Assigned') : employee.roles[employee.roles.length - 1]['name'].replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase()) }}</DD>
                         </DescriptionListItem>
 
-                        <DescriptionListItem>
-                            <DT>{{__('Device PIN / ZKTeco ID')}}</DT>
-                            <DD>{{ employee.device_employee_id ?? __('N/A') }}</DD>
-                        </DescriptionListItem>
+
 
                         <DescriptionListItem >
                             <DT>
