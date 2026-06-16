@@ -26,7 +26,17 @@ import dayjs from "dayjs";
 
 const formatTime = (timeStr) => {
     if (!timeStr) return '';
-    return dayjs(timeStr).format('hh:mm A');
+    const parts = timeStr.split(':');
+    if (parts.length >= 2) {
+        let hours = parseInt(parts[0], 10);
+        const minutes = parts[1];
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const hoursStr = hours < 10 ? '0' + hours : hours;
+        return `${hoursStr}:${minutes} ${ampm}`;
+    }
+    return timeStr;
 }
 
 const destroy = () => {
