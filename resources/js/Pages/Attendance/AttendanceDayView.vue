@@ -22,6 +22,13 @@ const props = defineProps({
 
 });
 
+import dayjs from "dayjs";
+
+const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    return dayjs(timeStr).format('hh:mm A');
+}
+
 const destroy = () => {
     const swalWithBootstrapButtons = Swal.mixin({
         customClass: {
@@ -97,8 +104,8 @@ const destroy = () => {
                                 <TableBodyHeader>{{ attendance.id }}</TableBodyHeader>
                                 <TableBodyHeader >{{ attendance.employee_name }}</TableBodyHeader>
                                 <TableBody>{{ attendance_types[attendance.status] }}</TableBody>
-                                <TableBody>{{ attendance.sign_in_time }}</TableBody>
-                                <TableBody>{{ attendance.sign_off_time ?? __('Haven\'t Sign Off Yet') }}</TableBody>
+                                <TableBody>{{ formatTime(attendance.sign_in_time) }}</TableBody>
+                                <TableBody>{{ attendance.sign_off_time ? formatTime(attendance.sign_off_time) : __('Haven\'t Sign Off Yet') }}</TableBody>
                                 <TableBody>{{ attendance.notes }}</TableBody>
                             </TableRow>
                         </template>
