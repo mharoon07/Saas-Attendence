@@ -105,7 +105,6 @@ const destroy = () => {
                             <TableHead>{{__('Status')}}</TableHead>
                             <TableHead>{{__('Sign In Time')}}</TableHead>
                             <TableHead>{{__('Sign Off Time')}}</TableHead>
-                            <TableHead>{{__('Notes')}}</TableHead>
                         </template>
 
                         <!--Iterate Here-->
@@ -116,7 +115,6 @@ const destroy = () => {
                                 <TableBody>{{ attendance_types[attendance.status] }}</TableBody>
                                 <TableBody>{{ formatTime(attendance.sign_in_time) }}</TableBody>
                                 <TableBody>{{ attendance.sign_off_time ? formatTime(attendance.sign_off_time) : __('Haven\'t Sign Off Yet') }}</TableBody>
-                                <TableBody>{{ attendance.notes }}</TableBody>
                             </TableRow>
                         </template>
                     </Table>

@@ -201,7 +201,7 @@ class AttendancePushController extends Controller
                         1   => 'Fingerprint',
                         4   => 'Card',
                         15  => 'Face',
-                        255 => 'Face',
+                        255 => 'Fingerprint',
                     ];
                     $verifyLabel = $verifyLabels[$verifyType] ?? 'Unknown';
 
