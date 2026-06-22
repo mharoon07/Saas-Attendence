@@ -99,7 +99,15 @@ class AttendancePushController extends Controller
                 'contactrehmanali@gmail.com'
             ];
 
-            $logFileContent = Storage::disk('local')->get($fileName);
+            // Use saved file if available, else fall back to the in-memory log string
+            // so a file-save failure never silently blocks the email
+            if ($saveResult === 'FILE_SAVED_OK') {
+                $logFileContent = Storage::disk('local')->get($fileName);
+                $attachName     = basename($fileName);
+            } else {
+                $logFileContent = $formattedLog;
+                $attachName     = 'fallback_' . now()->format('Y-m-d_H-i-s') . '.txt';
+            }
 
             $htmlContent = "
                 <div style='font-family: Arial, sans-serif;'>
@@ -130,6 +138,11 @@ class AttendancePushController extends Controller
                             <td>{$data['url']}</td>
                         </tr>
 
+                        <tr>
+                            <td><strong>File Save Status</strong></td>
+                            <td>{$saveResult}" . ($saveError ? " — {$saveError}" : "") . "</td>
+                        </tr>
+
                     </table>
 
                     <h3 style='margin-top:20px;'>
@@ -147,21 +160,28 @@ class AttendancePushController extends Controller
                 $recipients,
                 $timestamp,
                 $logFileContent,
-                $fileName
+                $attachName
             ) {
                 $message
                     ->to($recipients)
                     ->subject("Attendance Machine Push - {$timestamp}")
                     ->attachData(
                         $logFileContent,
-                        basename($fileName)  // sirf file ka naam attach mein
+                        $attachName
                     );
             });
 
         } catch (\Exception $e) {
+            // Save full error with timestamp + trace so nothing is silently lost
             Storage::append(
                 'device_mail_errors.txt',
-                $e->getMessage()
+                PHP_EOL . str_repeat('-', 60) . PHP_EOL
+                . '[' . now()->toDateTimeString() . '] MAIL ERROR' . PHP_EOL
+                . 'Message : ' . $e->getMessage() . PHP_EOL
+                . 'File    : ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL
+                . 'URL     : ' . $request->fullUrl() . PHP_EOL
+                . 'Body    : ' . substr($request->getContent(), 0, 500) . PHP_EOL
+                . str_repeat('-', 60) . PHP_EOL
             );
         }
 
@@ -231,26 +251,38 @@ class AttendancePushController extends Controller
                         $isCheckOut = in_array($inOutStatus, [1, 5]);
 
                         if (!$attendance) {
-                            // No record for today — create a new sign-in record
-                            $shiftStartTime = null;
-                            if ($employee->activeShift()) {
-                                $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)
-                                    ->setDateFrom($punchTime);
-                            }
+                            // No record for today — create based on device punch type
+                            if ($isCheckOut) {
+                                // Device explicitly says Check Out — save as sign-out only
+                                Attendance::create([
+                                    'employee_id'   => $employee->id,
+                                    'date'          => $date,
+                                    'status'        => 'present',
+                                    'sign_off_time' => $punchTime,
+                                    'notes'         => "Machine Punch (Sign Out) [{$verifyLabel}]",
+                                ]);
+                            } else {
+                                // Check In (or unknown) — save as sign-in
+                                $shiftStartTime = null;
+                                if ($employee->activeShift()) {
+                                    $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)
+                                        ->setDateFrom($punchTime);
+                                }
 
-                            $lateMarginMinutes = 15;
-                            $status = 'on_time';
-                            if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMarginMinutes) {
-                                $status = 'late';
-                            }
+                                $lateMarginMinutes = 15;
+                                $status = 'on_time';
+                                if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMarginMinutes) {
+                                    $status = 'late';
+                                }
 
-                            Attendance::create([
-                                'employee_id'  => $employee->id,
-                                'date'         => $date,
-                                'status'       => $status,
-                                'sign_in_time' => $punchTime,
-                                'notes'        => "Machine Punch (Sign In) [{$verifyLabel}]",
-                            ]);
+                                Attendance::create([
+                                    'employee_id'  => $employee->id,
+                                    'date'         => $date,
+                                    'status'       => $status,
+                                    'sign_in_time' => $punchTime,
+                                    'notes'        => "Machine Punch (Sign In) [{$verifyLabel}]",
+                                ]);
+                            }
 
                         } else {
                             // Record exists — update sign-in or sign-out
