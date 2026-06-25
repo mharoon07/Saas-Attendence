@@ -298,21 +298,65 @@ class AttendancePushController extends Controller
                                 $attendance->save();
                                 Log::info("ZKTeco Sign In (backfill): employee={$employee->id} time={$timestampStr} {$deviceFlagNote}");
 
-                            } elseif ($punchTime->gt($existingSignIn->copy()->addMinute())) {
-                                // Punch is at least 1 minute AFTER sign-in → treat as Sign Out
-                                // Only update if this punch is later than current sign-out
-                                if (!$existingSignOut || $punchTime->gt($existingSignOut)) {
-                                    $attendance->sign_off_time = $punchTime;
-                                    $attendance->device_out_id = $device ? $device->id : null;
-                                    $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign Out) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]", ' | ');
-                                    $attendance->save();
-                                    Log::info("ZKTeco Sign Out: employee={$employee->id} time={$timestampStr} {$deviceFlagNote}");
-                                } else {
-                                    Log::info("ZKTeco Duplicate/Old punch ignored: employee={$employee->id} time={$timestampStr}");
-                                }
                             } else {
-                                // Punch is within 1 minute of sign-in → duplicate, ignore
-                                Log::info("ZKTeco Duplicate punch ignored (within 1min of sign-in): employee={$employee->id} time={$timestampStr}");
+                                // Check if this punch is within the Sign In / Grace Period Window
+                                $shiftStartTime = null;
+                                if ($employee->activeShift()) {
+                                    $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)
+                                        ->setDateFrom($punchTime);
+                                }
+
+                                $globalSettings = \App\Models\Globals::first();
+                                $lateMarginMinutes = $globalSettings ? $globalSettings->late_threshold_minutes : 15;
+
+                                $isWithinGracePeriod = false;
+                                if ($shiftStartTime) {
+                                    // Start of arrival window: 2 hours before shift starts
+                                    $arrivalWindowStart = $shiftStartTime->copy()->subHours(2);
+                                    // End of grace period/arrival window: shift start + grace minutes
+                                    $arrivalWindowEnd = $shiftStartTime->copy()->addMinutes($lateMarginMinutes);
+
+                                    if ($punchTime->between($arrivalWindowStart, $arrivalWindowEnd)) {
+                                        $isWithinGracePeriod = true;
+                                    }
+                                } else {
+                                    // Fallback if no shift: within 30 minutes of the first sign-in
+                                    if ($punchTime->diffInMinutes($existingSignIn, true) <= 30) {
+                                        $isWithinGracePeriod = true;
+                                    }
+                                }
+
+                                if ($isWithinGracePeriod) {
+                                    // Update the existing Sign In time to the latest punch
+                                    $status = 'on_time';
+                                    if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMarginMinutes) {
+                                        $status = 'late';
+                                    }
+
+                                    $attendance->sign_in_time = $punchTime;
+                                    $attendance->status = $status;
+                                    $attendance->device_in_id = $device ? $device->id : null;
+                                    $attendance->notes = "Machine Punch (Sign In - Updated) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]";
+                                    $attendance->save();
+
+                                    Log::info("ZKTeco Sign In Updated: employee={$employee->id} pin={$devicePin} time={$timestampStr} {$deviceFlagNote}");
+
+                                } elseif ($punchTime->gt($existingSignIn->copy()->addMinute())) {
+                                    // Punch is after the grace period/arrival window, and at least 1 minute after sign-in → treat as Sign Out
+                                    // Only update if this punch is later than current sign-out
+                                    if (!$existingSignOut || $punchTime->gt($existingSignOut)) {
+                                        $attendance->sign_off_time = $punchTime;
+                                        $attendance->device_out_id = $device ? $device->id : null;
+                                        $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign Out) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]", ' | ');
+                                        $attendance->save();
+                                        Log::info("ZKTeco Sign Out: employee={$employee->id} time={$timestampStr} {$deviceFlagNote}");
+                                    } else {
+                                        Log::info("ZKTeco Duplicate/Old punch ignored: employee={$employee->id} time={$timestampStr}");
+                                    }
+                                } else {
+                                    // Punch is within 1 minute of sign-in (fallback case) → duplicate, ignore
+                                    Log::info("ZKTeco Duplicate punch ignored (within 1min of sign-in): employee={$employee->id} time={$timestampStr}");
+                                }
                             }
                         }
 
