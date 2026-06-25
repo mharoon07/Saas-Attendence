@@ -30,6 +30,7 @@ const form = useForm({
     email: props.globals.email,
     organization_address: props.globals.organization_address,
     absence_limit: props.globals.absence_limit,
+    late_threshold_minutes: props.globals.late_threshold_minutes,
     payroll_day: props.globals.payroll_day,
     weekend_off_days: JSON.parse(props.globals.weekend_off_days),
     income_tax: props.globals.income_tax,
@@ -288,6 +289,26 @@ onMounted(() => {
                                 placeholder="14"
                             />
                             <InputError class="mt-2" :message="form.errors.income_tax"/>
+                        </div>
+                        <div class="mt-2">
+                            <InputLabel for="late_threshold_minutes" :value="__('Attendance Late Threshold (Minutes)')" class="inline"/>
+                            <ToolTip>
+                                {{__('The number of minutes after the shift start time that an employee can sign in and still be considered on time.')}}
+                            </ToolTip>
+                            <TextInput
+                                id="late_threshold_minutes"
+                                type="number"
+                                min="0"
+                                max="1440"
+                                step="1"
+                                class="mt-1 block w-full"
+                                :class="{'border border-red-500': form.errors.late_threshold_minutes}"
+                                v-model="form.late_threshold_minutes"
+                                required
+                                autocomplete="off"
+                                placeholder="15"
+                            />
+                            <InputError class="mt-2" :message="form.errors.late_threshold_minutes"/>
                         </div>
                         <div class="mt-2">
                             <InputLabel for="weekend_off_days" :value="__('Weekend Off Days')"/>

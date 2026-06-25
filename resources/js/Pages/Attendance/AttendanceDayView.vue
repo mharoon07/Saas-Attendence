@@ -105,6 +105,8 @@ const destroy = () => {
                             <TableHead>{{__('Status')}}</TableHead>
                             <TableHead>{{__('Sign In Time')}}</TableHead>
                             <TableHead>{{__('Sign Off Time')}}</TableHead>
+                            <TableHead>{{__('Entry Device')}}</TableHead>
+                            <TableHead>{{__('Exit Device')}}</TableHead>
                         </template>
 
                         <!--Iterate Here-->
@@ -115,6 +117,8 @@ const destroy = () => {
                                 <TableBody>{{ attendance_types[attendance.status] }}</TableBody>
                                 <TableBody>{{ formatTime(attendance.sign_in_time) }}</TableBody>
                                 <TableBody>{{ attendance.sign_off_time ? formatTime(attendance.sign_off_time) : __('Haven\'t Sign Off Yet') }}</TableBody>
+                                <TableBody>{{ attendance.device_in_name ?? __('N/A') }}</TableBody>
+                                <TableBody>{{ attendance.device_out_name ?? __('N/A') }}</TableBody>
                             </TableRow>
                         </template>
                     </Table>

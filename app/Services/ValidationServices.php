@@ -209,6 +209,7 @@ Class ValidationServices extends Controller {
             'email' => ['required', 'email:strict'],
             'organization_address' => ['required', 'string', 'max:255'],
             'absence_limit' => ['required', 'numeric', 'min:0', 'max:365'],
+            'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:1440'],
             'payroll_day' => ['required', 'integer', 'min:1', 'max:31'],
             'weekend_off_days' => ['nullable', 'array', 'max:7'],
             'weekend_off_days.*' => ['nullable', 'string', 'in:saturday,sunday,monday,tuesday,wednesday,thursday,friday'],
@@ -372,6 +373,28 @@ Class ValidationServices extends Controller {
             'date.year' => ['nullable', 'integer', 'min:1453', 'max:2999'],
             'status' => ['nullable', 'string', 'in:all,pending,reviewed,paid'],
         ]);
+    }
+
+    public function validateDeviceCreationDetails($request)
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'serial_number' => ['required', 'string', 'max:255', 'unique:devices,serial_number'],
+            'ip_address' => ['nullable', 'string', 'max:45'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ], $this->validationMessages);
+    }
+
+    public function validateDeviceUpdateDetails($request, $id)
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'serial_number' => ['required', 'string', 'max:255', 'unique:devices,serial_number,' . $id],
+            'ip_address' => ['nullable', 'string', 'max:45'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ], $this->validationMessages);
     }
 
 }

@@ -201,6 +201,16 @@ class AttendancePushController extends Controller
         |
         */
         if ($request->query('table') === 'ATTLOG') {
+            $serialNumber = $request->query('SN') ?? $request->input('SN');
+            $device = null;
+            if (!empty($serialNumber)) {
+                $device = \App\Models\Device::where('serial_number', $serialNumber)->first();
+                if (!$device) {
+                    Log::warning("ZKTeco: Request from unregistered device [SN: {$serialNumber}].");
+                }
+            }
+            $deviceNote = $device ? "device={$device->name}" : "device_sn={$serialNumber}";
+
             $rawBody = $request->getContent();
             if (!empty($rawBody)) {
                 $lines = explode("\n", trim($rawBody));
@@ -243,65 +253,66 @@ class AttendancePushController extends Controller
                             ->where('date', $date)
                             ->first();
 
-                        // --- Determine punch type using parts[3] ---
-                        // 0 = Check In, 4 = OT In  → sign in
-                        // 1 = Check Out, 5 = OT Out → sign out
-                        // -1 = unknown              → fallback to time logic
-                        $isCheckIn  = in_array($inOutStatus, [0, 4]);
-                        $isCheckOut = in_array($inOutStatus, [1, 5]);
+                        // --- NOTE: device parts[3] flag is NOT reliable on many ZKTeco models ---
+                        // (this device always sends 1 = Check Out for every punch)
+                        // We log it but do NOT use it for sign-in/sign-out decision.
+                        // Instead: first punch of the day = sign_in, next punch = sign_out.
+                        $deviceFlagNote = "device_flag={$inOutStatus}";
 
                         if (!$attendance) {
-                            // No record for today — create based on device punch type
-                            if ($isCheckOut) {
-                                // Device explicitly says Check Out — save as sign-out only
-                                Attendance::create([
-                                    'employee_id'   => $employee->id,
-                                    'date'          => $date,
-                                    'status'        => 'present',
-                                    'sign_off_time' => $punchTime,
-                                    'notes'         => "Machine Punch (Sign Out) [{$verifyLabel}]",
-                                ]);
-                            } else {
-                                // Check In (or unknown) — save as sign-in
-                                $shiftStartTime = null;
-                                if ($employee->activeShift()) {
-                                    $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)
-                                        ->setDateFrom($punchTime);
-                                }
-
-                                $lateMarginMinutes = 15;
-                                $status = 'on_time';
-                                if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMarginMinutes) {
-                                    $status = 'late';
-                                }
-
-                                Attendance::create([
-                                    'employee_id'  => $employee->id,
-                                    'date'         => $date,
-                                    'status'       => $status,
-                                    'sign_in_time' => $punchTime,
-                                    'notes'        => "Machine Punch (Sign In) [{$verifyLabel}]",
-                                ]);
+                            // ── No record today → ALWAYS treat as Sign In ──────────────────
+                            $shiftStartTime = null;
+                            if ($employee->activeShift()) {
+                                $shiftStartTime = Carbon::createFromFormat('H:i:s', $employee->activeShift()->start_time)
+                                    ->setDateFrom($punchTime);
                             }
 
+                            $globalSettings = \App\Models\Globals::first();
+                            $lateMarginMinutes = $globalSettings ? $globalSettings->late_threshold_minutes : 15;
+                            $status = 'on_time';
+                            if ($shiftStartTime && $shiftStartTime->diffInMinutes($punchTime, false) > $lateMarginMinutes) {
+                                $status = 'late';
+                            }
+
+                            Attendance::create([
+                                'employee_id'  => $employee->id,
+                                'date'         => $date,
+                                'status'       => $status,
+                                'sign_in_time' => $punchTime,
+                                'device_in_id' => $device ? $device->id : null,
+                                'notes'        => "Machine Punch (Sign In) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]",
+                            ]);
+
+                            Log::info("ZKTeco Sign In: employee={$employee->id} pin={$devicePin} time={$timestampStr} {$deviceFlagNote}");
+
                         } else {
-                            // Record exists — update sign-in or sign-out
+                            // ── Record exists → decide sign-in update or sign-out ────────────
                             $existingSignIn  = $attendance->sign_in_time  ? Carbon::parse($attendance->sign_in_time)  : null;
                             $existingSignOut = $attendance->sign_off_time ? Carbon::parse($attendance->sign_off_time) : null;
 
-                            if ($isCheckIn || (!$isCheckOut && (!$existingSignIn || $punchTime->lt($existingSignIn)))) {
-                                // Device says Check In, OR no sign-in yet, OR earlier punch
+                            if (!$existingSignIn) {
+                                // No sign-in on existing record → fill it in
                                 $attendance->sign_in_time = $punchTime;
-                                $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign In) [{$verifyLabel}]", ' | ');
+                                $attendance->device_in_id = $device ? $device->id : null;
+                                $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign In) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]", ' | ');
                                 $attendance->save();
+                                Log::info("ZKTeco Sign In (backfill): employee={$employee->id} time={$timestampStr} {$deviceFlagNote}");
 
-                            } elseif ($isCheckOut || (!$isCheckIn && $existingSignIn && $punchTime->diffInMinutes($existingSignIn) > 5)) {
-                                // Device says Check Out, OR no explicit flag but latest punch > 5min after sign-in
+                            } elseif ($punchTime->gt($existingSignIn->copy()->addMinute())) {
+                                // Punch is at least 1 minute AFTER sign-in → treat as Sign Out
+                                // Only update if this punch is later than current sign-out
                                 if (!$existingSignOut || $punchTime->gt($existingSignOut)) {
                                     $attendance->sign_off_time = $punchTime;
-                                    $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign Out) [{$verifyLabel}]", ' | ');
+                                    $attendance->device_out_id = $device ? $device->id : null;
+                                    $attendance->notes = trim(($attendance->notes ?? '') . " | Machine Punch (Sign Out) [{$verifyLabel}] [{$deviceFlagNote}] [{$deviceNote}]", ' | ');
                                     $attendance->save();
+                                    Log::info("ZKTeco Sign Out: employee={$employee->id} time={$timestampStr} {$deviceFlagNote}");
+                                } else {
+                                    Log::info("ZKTeco Duplicate/Old punch ignored: employee={$employee->id} time={$timestampStr}");
                                 }
+                            } else {
+                                // Punch is within 1 minute of sign-in → duplicate, ignore
+                                Log::info("ZKTeco Duplicate punch ignored (within 1min of sign-in): employee={$employee->id} time={$timestampStr}");
                             }
                         }
 

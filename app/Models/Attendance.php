@@ -21,6 +21,16 @@ class Attendance extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function deviceIn(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Device::class, 'device_in_id');
+    }
+
+    public function deviceOut(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Device::class, 'device_out_id');
+    }
+
     public function on_time(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Attendance::class)->where('status', 'on_time');

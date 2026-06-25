@@ -27,6 +27,7 @@ class StarterSeeder extends Seeder
             'organization_address' => '123 Main Street, Anytown, USA',
             'absence_limit' => 30,
             'email' => 'info@globalsolutions.com',
+            'late_threshold_minutes' => 15,
         ]);
 
         $branch = Branch::factory()->create([

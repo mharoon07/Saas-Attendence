@@ -19,6 +19,9 @@ import GoBackNavLink from "@/Components/GoBackNavLink.vue";
     <NavLink :href="route('metrics.index')" :active="route().current('metrics.index') || route().current('metrics.edit') || route().current('metrics.show') ||route().current('metrics.create')">
         {{__('Metrics')}}
     </NavLink>
+    <NavLink :href="route('devices.index')" :active="route().current('devices.index') || route().current('devices.edit') || route().current('devices.show') || route().current('devices.create')">
+        {{__('Devices')}}
+    </NavLink>
     <NavLink :href="route('globals.index')" :active="route().current('globals.index') || route().current('globals.edit')">
         {{__('Globals')}}
     </NavLink>

@@ -28,22 +28,20 @@ class AttendancePushTest extends TestCase
             ]
         ];
 
-        $response = $this->postJson('/api/attendance-machine-push', $payload, [
+        $response = $this->post('/attendance-machine-push', $payload, [
             'X-Test-Header' => 'CustomAttendanceMachine',
         ]);
 
         $response->assertStatus(200);
-        $response->assertJson([
-            'status' => 'success',
-            'message' => 'Data logged successfully',
-        ]);
+        $this->assertEquals('OK', $response->getContent());
 
-        // Assert that the file was created and contains our logged information
-        Storage::disk('local')->assertExists('attendance_device_logs.txt');
+        // Assert that a log file was created in device_logs/
+        $files = Storage::disk('local')->files('device_logs');
+        $this->assertNotEmpty($files);
         
-        $logContents = Storage::disk('local')->get('attendance_device_logs.txt');
+        $logFile = $files[0];
+        $logContents = Storage::disk('local')->get($logFile);
         
-        $this->assertStringContainsString('CLIENT IP', $logContents);
         $logContents = strtolower($logContents);
         $this->assertStringContainsString('x-test-header', $logContents);
         $this->assertStringContainsString('customattendancemachine', $logContents);

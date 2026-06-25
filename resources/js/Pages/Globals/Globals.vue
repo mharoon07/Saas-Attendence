@@ -97,6 +97,11 @@ onBeforeMount(() => {
                                 <DD>{{ globals.income_tax + "%"}}</DD>
                             </DescriptionListItem>
 
+                            <DescriptionListItem>
+                                <DT>{{__('Attendance Late Margin')}}</DT>
+                                <DD>{{ globals.late_threshold_minutes + ' ' + __('Minutes') }}</DD>
+                            </DescriptionListItem>
+
                             <DescriptionListItem colored>
                                 <DT></DT>
                                 <DD></DD>

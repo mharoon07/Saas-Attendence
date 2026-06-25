@@ -113,7 +113,18 @@ class AttendanceController extends Controller
 
         $attendanceList = Attendance::where('date', $date)
             ->join('employees', 'attendances.employee_id', '=', 'employees.id')
-            ->select(['attendances.id', 'employees.name as employee_name', 'attendances.status', 'attendances.sign_in_time', 'attendances.sign_off_time', 'attendances.notes'])
+            ->leftJoin('devices as di', 'attendances.device_in_id', '=', 'di.id')
+            ->leftJoin('devices as do', 'attendances.device_out_id', '=', 'do.id')
+            ->select([
+                'attendances.id',
+                'employees.name as employee_name',
+                'attendances.status',
+                'attendances.sign_in_time',
+                'attendances.sign_off_time',
+                'di.name as device_in_name',
+                'do.name as device_out_name',
+                'attendances.notes'
+            ])
             ->orderByDesc('attendances.created_at')->paginate(config('constants.data.pagination_count'));
 
         return Inertia::render('Attendance/AttendanceDayView', [
