@@ -27,6 +27,7 @@ class DeviceController extends Controller
                     ->orWhere('serial_number', 'ILIKE', '%' . $term . '%')
                     ->orWhere('ip_address', 'ILIKE', '%' . $term . '%');
             })
+                ->select(['id', 'name', 'serial_number', 'ip_address'])
                 ->orderBy('id')
                 ->paginate(config('constants.data.pagination_count')),
         ]);
