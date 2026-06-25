@@ -44,6 +44,7 @@ const form = useForm({
     shift_id: '',
     currency: 'PKR',
     salary: '',
+    device_employee_id: '',
 });
 
 
@@ -601,6 +602,19 @@ const submitShift = () => {
                                     </div>
                                     <InputError class="mt-2" :message="form.errors.currency"/>
                                     <InputError class="mt-2" :message="form.errors.salary"/>
+                                </div>
+                                <div>
+                                    <InputLabel for="device_employee_id" :value="__('Device Employee ID (PIN)')"/>
+                                    <TextInput
+                                        id="device_employee_id"
+                                        type="text"
+                                        class="mt-1 block w-full"
+                                        :class="{'border border-red-500': form.errors.device_employee_id}"
+                                        v-model="form.device_employee_id"
+                                        autocomplete="off"
+                                        :placeholder="__('12')"
+                                    />
+                                    <InputError class="mt-2" :message="form.errors.device_employee_id"/>
                                 </div>
                             </div>
 
