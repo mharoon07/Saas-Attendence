@@ -11,4 +11,9 @@ class Device extends Model
 
     protected $connection = 'mysql';
     protected $guarded = [];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'last_seen_at' => 'datetime',
+    ];
 }

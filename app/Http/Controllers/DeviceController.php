@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Device;
 use App\Services\ValidationServices;
 use Illuminate\Http\Request;
@@ -47,8 +48,39 @@ class DeviceController extends Controller
     public function store(Request $request)
     {
         $res = $this->validationServices->validateDeviceCreationDetails($request);
-        Device::create($res);
+        $device = Device::create($res);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'device' => [
+                    'id' => $device->id,
+                    'serial_number' => $device->serial_number,
+                    'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+                ],
+            ], 201);
+        }
+
         return to_route('devices.index');
+    }
+
+    public function connectionStatus(Request $request, Device $device)
+    {
+        $since = null;
+        if ($request->filled('since')) {
+            try {
+                $since = Carbon::parse($request->input('since'));
+            } catch (\Exception $e) {
+                $since = null;
+            }
+        }
+
+        $lastSeenAt = $device->last_seen_at;
+        $connected = $lastSeenAt && (!$since || $lastSeenAt->greaterThanOrEqualTo($since));
+
+        return response()->json([
+            'connected' => (bool) $connected,
+            'last_seen_at' => $lastSeenAt?->toIso8601String(),
+        ]);
     }
 
     /**
