@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('organization_address'); // Probably you only need the country, not full address
             $table->unsignedSmallInteger('absence_limit');
             $table->unsignedTinyInteger('payroll_day')->default(1);
-            $table->json('weekend_off_days')->default(json_encode(['friday', 'saturday']));
+            $table->json('weekend_off_days')->nullable();
             $table->string('email');
             $table->float('income_tax')->unsigned()->default(14);
             $table->boolean('is_ip_based')->default(false);

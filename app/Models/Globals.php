@@ -21,6 +21,10 @@ class Globals extends Model
     // Wasn't able to call this model 'Global' as it was reserved by PHP.
     protected $table = 'globals';
 
+    protected $attributes = [
+        'weekend_off_days' => '["friday","saturday"]',
+    ];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Attendance;
 use Carbon\Carbon;
@@ -14,6 +15,8 @@ class AttendancePushController extends Controller
 {
     public function handlePush(Request $request)
     {
+        $seenDevice = $this->recordDeviceConnection($request);
+
         // Sirf empty GET skip karo (device polling) — data wali GET/POST dono process karo
         $hasBody = !empty($request->getContent());
         $hasAttlog = $request->query('table') === 'ATTLOG';
@@ -202,9 +205,9 @@ class AttendancePushController extends Controller
         */
         if ($request->query('table') === 'ATTLOG') {
             $serialNumber = $request->query('SN') ?? $request->input('SN');
-            $device = null;
+            $device = $seenDevice;
             if (!empty($serialNumber)) {
-                $device = \App\Models\Device::where('serial_number', $serialNumber)->first();
+                $device = $device ?: Device::where('serial_number', $serialNumber)->first();
                 if (!$device) {
                     Log::warning("ZKTeco: Request from unregistered device [SN: {$serialNumber}].");
                 }
@@ -379,5 +382,36 @@ class AttendancePushController extends Controller
 
         return response('OK', 200)
             ->header('Content-Type', 'text/plain');
+    }
+
+    private function recordDeviceConnection(Request $request): ?Device
+    {
+        $serialNumber = $request->query('SN')
+            ?? $request->input('SN')
+            ?? $request->query('sn')
+            ?? $request->input('sn');
+
+        if (!$serialNumber && preg_match('/(?:^|[&\s])SN=([^&\s]+)/i', $request->getContent(), $matches)) {
+            $serialNumber = $matches[1];
+        }
+
+        if (!$serialNumber) {
+            return null;
+        }
+
+        $device = Device::where('serial_number', trim($serialNumber))->first();
+        if (!$device) {
+            Log::warning("ZKTeco: Connection from unregistered device [SN: {$serialNumber}].");
+            return null;
+        }
+
+        $updates = ['last_seen_at' => now()];
+        if (!$device->ip_address) {
+            $updates['ip_address'] = $request->ip();
+        }
+
+        $device->forceFill($updates)->save();
+
+        return $device;
     }
 }
