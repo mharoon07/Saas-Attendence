@@ -44,7 +44,7 @@ defineProps({
 
                     <DataTable
                         :controller="'devices'"
-                        :head='[__("ID"), __("Name"), __("Serial Number"), __("IP Address")]'
+                        :head='[__("ID"), __("Name"), __("Serial Number"), __("IP Address"), __("Connection"), __("Last Connected")]'
                         :data="devices"
                         :hasActions="true"
                         :hasLink="true"

@@ -28,9 +28,17 @@ class DeviceController extends Controller
                     ->orWhere('serial_number', 'ILIKE', '%' . $term . '%')
                     ->orWhere('ip_address', 'ILIKE', '%' . $term . '%');
             })
-                ->select(['id', 'name', 'serial_number', 'ip_address'])
+                ->select(['id', 'name', 'serial_number', 'ip_address', 'last_seen_at'])
                 ->orderBy('id')
-                ->paginate(config('constants.data.pagination_count')),
+                ->paginate(config('constants.data.pagination_count'))
+                ->through(fn (Device $device) => [
+                    'id' => $device->id,
+                    'name' => $device->name,
+                    'serial_number' => $device->serial_number,
+                    'ip_address' => $device->ip_address,
+                    'connection_status' => $device->last_seen_at ? __('Connected') : __('Not Connected'),
+                    'last_connected_at' => $device->last_seen_at?->format('Y-m-d H:i:s'),
+                ]),
         ]);
     }
 
