@@ -47,7 +47,16 @@ Class ValidationServices extends Controller {
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
-            'salary' => ['required','integer'],
+            'monthly_salary' => ['required','numeric'],
+            'overtime_rate' => ['required','numeric'],
+            'weekly_off_day' => ['required', 'string', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
+            
+            'custom_additions' => ['nullable', 'array'],
+            'custom_additions.*.name' => ['required', 'string', 'max:255'],
+            'custom_additions.*.amount' => ['required', 'numeric', 'min:0'],
+            'custom_deductions' => ['nullable', 'array'],
+            'custom_deductions.*.name' => ['required', 'string', 'max:255'],
+            'custom_deductions.*.amount' => ['required', 'numeric', 'min:0'],
 
         ], $this->validationMessages);
     }
@@ -71,8 +80,17 @@ Class ValidationServices extends Controller {
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
-            'salary' => ['required','integer'],
+            'monthly_salary' => ['required','numeric'],
+            'overtime_rate' => ['required','numeric'],
+            'weekly_off_day' => ['required', 'string', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
             'role' => ['required', Rule::in($this->roles)],
+
+            'custom_additions' => ['nullable', 'array'],
+            'custom_additions.*.name' => ['required', 'string', 'max:255'],
+            'custom_additions.*.amount' => ['required', 'numeric', 'min:0'],
+            'custom_deductions' => ['nullable', 'array'],
+            'custom_deductions.*.name' => ['required', 'string', 'max:255'],
+            'custom_deductions.*.amount' => ['required', 'numeric', 'min:0'],
         ], $this->validationMessages);
     }
     public function validateShiftIdDetails($request)
@@ -92,7 +110,8 @@ Class ValidationServices extends Controller {
 //        dd($request-);
         return $request->validate([
             'currency' => ['required'],
-            'salary' => ['required','integer'],
+            'monthly_salary' => ['required','numeric'],
+            'overtime_rate' => ['required','numeric'],
         ], $this->validationMessages);
     }
     public function validatePositionCreationDetails($request)
@@ -165,8 +184,8 @@ Class ValidationServices extends Controller {
             'end_time.seconds' => ['required', 'numeric'],
 
             'name' => ['required', 'string', 'unique:shifts', 'max:255'],
-            'shift_payment_multiplier' => ['nullable', 'numeric', 'min:1'],
             'description' => ['nullable', 'string'],
+            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }
@@ -184,8 +203,8 @@ Class ValidationServices extends Controller {
             'end_time.seconds' => ['required', 'numeric'],
 
             'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
-            'shift_payment_multiplier' => ['nullable', 'numeric', 'min:1'],
             'description' => ['nullable', 'string'],
+            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }
@@ -195,8 +214,8 @@ Class ValidationServices extends Controller {
             'start_time' => ['required', 'date_format:H:i:s'],
             'end_time' => ['required', 'date_format:H:i:s'],
             'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
-            'shift_payment_multiplier' => ['nullable', 'numeric', 'min:1'],
             'description' => ['nullable', 'string'],
+            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }
@@ -240,7 +259,7 @@ Class ValidationServices extends Controller {
             'employee_id' => 'required|array',
             'employee_id.*' => 'required|integer',
             'status' => 'required|array',
-            'status.*' => 'required|in:on_time,late,missed',
+            'status.*' => 'required|in:on_time,late,missed,leave,absent',
             'sign_in_time' => 'required|array',
             'sign_in_time.*' => 'required|array|size:3',
             'sign_in_time.*.hours' => 'required|integer',
@@ -306,20 +325,18 @@ Class ValidationServices extends Controller {
             'quick_pay_send_email' => ['required','boolean'],
 
             // Additions
-            'rewards' => ['nullable','numeric', 'min:0'],
-            'incentives' => ['nullable','numeric', 'min:0'],
-            'reimbursements' => ['nullable','numeric', 'min:0'],
-            'shift_differentials' => ['nullable','numeric', 'min:0'],
-            'commissions' => ['nullable','numeric', 'min:0'],
+            'custom_additions' => ['nullable', 'array'],
+            'custom_additions.*.name' => ['required', 'string', 'max:255'],
+            'custom_additions.*.amount' => ['required', 'numeric', 'min:0'],
             'extra_hour_rate' => ['nullable','numeric', 'min:0'],
 
             // Deductions
-            'social_security_contributions' => ['nullable','numeric', 'min:0'],
-            'health_insurance' => ['nullable','numeric', 'min:0'],
-            'retirement_plan' => ['nullable','numeric', 'min:0'],
-            'benefits' => ['nullable','numeric', 'min:0'],
-            'union_fees' => ['nullable','numeric', 'min:0'],
+            'custom_deductions' => ['nullable', 'array'],
+            'custom_deductions.*.name' => ['required', 'string', 'max:255'],
+            'custom_deductions.*.amount' => ['required', 'numeric', 'min:0'],
             'negative_hour_rate' => ['nullable','numeric', 'min:0'],
+            'loan_deduction' => ['nullable', 'numeric', 'min:0'],
+            'advance_payment_deduction' => ['nullable', 'numeric', 'min:0'],
 
             // Metric Multiplier
             'metricsIDs' => ['required','array'],

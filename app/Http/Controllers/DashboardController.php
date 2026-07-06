@@ -45,7 +45,7 @@ class DashboardController extends Controller
                 $attendedDays = $employee->attendances()
                     ->whereYear('date', $year)
                     ->whereMonth('date', $month)
-                    ->where('status', '!=', 'missed')
+                    ->whereNotIn('status', ['missed', 'absent'])
                     ->count();
 
                 $lateCount = 0;
@@ -99,7 +99,7 @@ class DashboardController extends Controller
 
             $attendedDays = \App\Models\Attendance::whereYear('date', $year)
                 ->whereMonth('date', $month)
-                ->where('status', '!=', 'missed')
+                ->whereNotIn('status', ['missed', 'absent'])
                 ->count();
 
             $lateCount = 0;

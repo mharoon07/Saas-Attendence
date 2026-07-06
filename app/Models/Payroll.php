@@ -18,6 +18,16 @@ class Payroll extends Model
         return LogOptions::defaults();
     }
 
+    public function getGrossSalaryAttribute()
+    {
+        return $this->base * $this->performance_multiplier + $this->total_additions;
+    }
+
+    public function getNetSalaryAttribute()
+    {
+        return $this->gross_salary - $this->total_deductions;
+    }
+
     public function employee(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Employee::class);

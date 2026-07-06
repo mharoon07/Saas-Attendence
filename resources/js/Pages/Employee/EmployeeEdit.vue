@@ -59,11 +59,31 @@ const form = useForm({
     department_id: props.employee.department_id,
     position_id: (lastPosition && lastPosition.position) ? lastPosition.position.id : '',
     shift_id: (lastShift && lastShift.shift) ? lastShift.shift.id : '',
-    currency: lastSalary ? lastSalary.currency : '',
-    salary: lastSalary ? lastSalary.salary : '',
-    role: lastRole ? lastRole.name : '',
+    currency: lastSalary ? lastSalary.currency : 'PKR',
+    monthly_salary: lastSalary ? lastSalary.monthly_salary : '',
+    overtime_rate: lastSalary ? lastSalary.overtime_rate : '',
+    weekly_off_day: props.employee.weekly_off_day || 'sunday',
     device_employee_id: props.employee.device_employee_id || '',
+    role: lastRole ? lastRole.name : '',
+    custom_additions: lastSalary && lastSalary.custom_additions ? lastSalary.custom_additions : [],
+    custom_deductions: lastSalary && lastSalary.custom_deductions ? lastSalary.custom_deductions : [],
 });
+
+const addCustomAddition = () => {
+    form.custom_additions.push({ name: '', amount: '' });
+};
+
+const removeCustomAddition = (index) => {
+    form.custom_additions.splice(index, 1);
+};
+
+const addCustomDeduction = () => {
+    form.custom_deductions.push({ name: '', amount: '' });
+};
+
+const removeCustomDeduction = (index) => {
+    form.custom_deductions.splice(index, 1);
+};
 
 const positionForm = useForm({
     name: '',
@@ -74,7 +94,6 @@ const shiftForm = useForm({
     name: '',
     start_time: '',
     end_time: '',
-    shift_payment_multiplier: '',
     description: '',
 });
 
@@ -567,19 +586,6 @@ const submitShift = () => {
                                             <InputError class="mt-2" :message="shiftForm.errors.end_time"/>
                                         </div>
                                         <div>
-                                            <InputLabel for="shift_payment_multiplier" :value="__('Multiplier')"/>
-                                            <TextInput
-                                                id="shift_payment_multiplier"
-                                                type="number"
-                                                class="mt-1 block w-full"
-                                                :class="{'border border-red-500': shiftForm.errors.shift_payment_multiplier}"
-                                                v-model="shiftForm.shift_payment_multiplier"
-                                                autocomplete="off"
-                                                :placeholder="'1 (' + __('default') + ')'"
-                                            />
-                                            <InputError class="mt-2" :message="shiftForm.errors.shift_payment_multiplier"/>
-                                        </div>
-                                        <div>
                                             <InputLabel for="description" :value="__('Description')"/>
                                             <TextInput
                                                 id="description"
@@ -608,9 +614,27 @@ const submitShift = () => {
                             </div>
 
                         </div>
+
                         <div class="grid grid-cols-2 gap-8 mt-4">
                             <div>
-                                <InputLabel for="salary" :value="__('Salary')" class="mb-1"/>
+                                <InputLabel for="weekly_off_day" :value="__('Weekly Off Day')"/>
+                                <select id="weekly_off_day" class="fancy-selector" v-model="form.weekly_off_day">
+                                    <option value="monday">{{__('Monday')}}</option>
+                                    <option value="tuesday">{{__('Tuesday')}}</option>
+                                    <option value="wednesday">{{__('Wednesday')}}</option>
+                                    <option value="thursday">{{__('Thursday')}}</option>
+                                    <option value="friday">{{__('Friday')}}</option>
+                                    <option value="saturday">{{__('Saturday')}}</option>
+                                    <option value="sunday">{{__('Sunday')}}</option>
+                                </select>
+                                <InputError class="mt-2" :message="form.errors.weekly_off_day"/>
+                            </div>
+                            <div></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-8 mt-4">
+                            <div>
+                                <InputLabel for="monthly_salary" :value="__('Monthly Salary')" class="mb-1"/>
                                 <div class="grid grid-cols-6">
                                     <select id="currency"
                                             class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
@@ -627,19 +651,68 @@ const submitShift = () => {
                                         <option value="KWD">KWD</option>
                                     </select>
                                     <TextInput
-                                        id="salary"
+                                        id="monthly_salary"
                                         type="number"
                                         class="inline ltr:rounded-l-none rtl:rounded-r-none col-span-4"
-                                        :class="{'border border-red-500': form.errors.salary}"
-                                        v-model="form.salary"
+                                        :class="{'border border-red-500': form.errors.monthly_salary}"
+                                        v-model="form.monthly_salary"
                                         required
                                         autocomplete="off"
                                         placeholder="10000"
                                     />
                                 </div>
                                 <InputError class="mt-2" :message="form.errors.currency"/>
-                                <InputError class="mt-2" :message="form.errors.salary"/>
+                                <InputError class="mt-2" :message="form.errors.monthly_salary"/>
                             </div>
+                            <div>
+                                <InputLabel for="daily_salary" :value="__('Daily Salary (Auto-Calculated)')"/>
+                                <TextInput
+                                    id="daily_salary"
+                                    type="number"
+                                    class="mt-1 block w-full bg-gray-100"
+                                    :value="daily_salary"
+                                    readonly
+                                    autocomplete="off"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-8 mt-4">
+                            <div>
+                                <InputLabel for="overtime_rate" :value="__('Overtime Rate Per Hour')"/>
+                                <TextInput
+                                    id="overtime_rate"
+                                    type="number"
+                                    step="0.01"
+                                    class="mt-1 block w-full"
+                                    :class="{'border border-red-500': form.errors.overtime_rate}"
+                                    v-model="form.overtime_rate"
+                                    required
+                                    autocomplete="off"
+                                    placeholder="50.00"
+                                />
+                                <InputError class="mt-2" :message="form.errors.overtime_rate"/>
+                            </div>
+                            <div>
+                                <InputLabel for="weekly_off_day" :value="__('Weekly Off Day')"/>
+                                <select
+                                    id="weekly_off_day"
+                                    v-model="form.weekly_off_day"
+                                    :class="{'border border-red-500': form.errors.weekly_off_day}"
+                                    class="mt-1 block w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                >
+                                    <option value="monday">{{ __('Monday') }}</option>
+                                    <option value="tuesday">{{ __('Tuesday') }}</option>
+                                    <option value="wednesday">{{ __('Wednesday') }}</option>
+                                    <option value="thursday">{{ __('Thursday') }}</option>
+                                    <option value="friday">{{ __('Friday') }}</option>
+                                    <option value="saturday">{{ __('Saturday') }}</option>
+                                    <option value="sunday">{{ __('Sunday') }}</option>
+                                </select>
+                                <InputError class="mt-2" :message="form.errors.weekly_off_day"/>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-8 mt-4">
                             <div>
                                 <InputLabel for="device_employee_id" :value="__('Device Employee ID (PIN)')"/>
                                 <TextInput
@@ -652,6 +725,70 @@ const submitShift = () => {
                                     :placeholder="__('12')"
                                 />
                                 <InputError class="mt-2" :message="form.errors.device_employee_id"/>
+                            </div>
+                        </div>
+
+                        <hr class="my-6 border-gray-200 dark:border-gray-700"/>
+
+                        <div class="grid grid-cols-2 gap-8 mt-4">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{{ __('Custom Additions') }}</h3>
+                                <div v-for="(item, index) in form.custom_additions" :key="index" class="flex gap-2 mb-2 items-center">
+                                    <TextInput
+                                        type="text"
+                                        class="w-1/2"
+                                        v-model="item.name"
+                                        autocomplete="off"
+                                        :placeholder="__('Addition Name')"
+                                        required
+                                    />
+                                    <TextInput
+                                        type="number"
+                                        class="w-1/3"
+                                        v-model="item.amount"
+                                        autocomplete="off"
+                                        step="0.01"
+                                        min="0"
+                                        :placeholder="__('Amount')"
+                                        required
+                                    />
+                                    <button @click.prevent="removeCustomAddition(index)" type="button" class="text-red-500 hover:text-red-700 font-semibold text-sm">
+                                        {{ __('Remove') }}
+                                    </button>
+                                </div>
+                                <button @click.prevent="addCustomAddition" type="button" class="text-purple-600 hover:text-purple-800 font-semibold text-sm mt-2">
+                                    + {{ __('Add Custom Addition') }}
+                                </button>
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{{ __('Custom Deductions') }}</h3>
+                                <div v-for="(item, index) in form.custom_deductions" :key="index" class="flex gap-2 mb-2 items-center">
+                                    <TextInput
+                                        type="text"
+                                        class="w-1/2"
+                                        v-model="item.name"
+                                        autocomplete="off"
+                                        :placeholder="__('Deduction Name')"
+                                        required
+                                    />
+                                    <TextInput
+                                        type="number"
+                                        class="w-1/3"
+                                        v-model="item.amount"
+                                        autocomplete="off"
+                                        step="0.01"
+                                        min="0"
+                                        :placeholder="__('Amount')"
+                                        required
+                                    />
+                                    <button @click.prevent="removeCustomDeduction(index)" type="button" class="text-red-500 hover:text-red-700 font-semibold text-sm">
+                                        {{ __('Remove') }}
+                                    </button>
+                                </div>
+                                <button @click.prevent="addCustomDeduction" type="button" class="text-purple-600 hover:text-purple-800 font-semibold text-sm mt-2">
+                                    + {{ __('Add Custom Deduction') }}
+                                </button>
                             </div>
                         </div>
 

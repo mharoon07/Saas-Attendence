@@ -73,7 +73,7 @@ class Employee extends Authenticatable
         if (!$salary) {
             return ['USD', 0, $this->hired_on ?? now()->toDateString()];
         }
-        return [$salary->currency, $salary->salary, $salary->start_date];
+        return [$salary->currency, $salary->monthly_salary, $salary->start_date];
     }
 
     /**************------- Payrolls -------*************/
@@ -161,30 +161,27 @@ class Employee extends Authenticatable
     public function getAttended(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         // exclude absented ones
-        return $this->attendances()->where('status', '!=', 'missed');
+        return $this->attendances()->whereNotIn('status', ['missed', 'absent']);
     }
     public function getAttendedInYear($year): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         // exclude absented ones
-        return $this->attendances()->where('status', '!=', 'missed')->whereYear('date', $year);
+        return $this->attendances()->whereNotIn('status', ['missed', 'absent'])->whereYear('date', $year);
     }
     public function getAbsentedInYear($year): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         // get absented ones
-        return $this->attendances()->where('status', '=', 'missed')->whereYear('date', $year);
+        return $this->attendances()->whereIn('status', ['missed', 'absent'])->whereYear('date', $year);
     }
     public function getAbsented(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         // get absented ones
-        return $this->attendances()->where('status', '=', 'missed');
+        return $this->attendances()->whereIn('status', ['missed', 'absent']);
     }
 
     public function getYearStats($globalSettings = null){
         $globalSettings = $globalSettings ?? Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
         $commonServices = new \App\Services\CommonServices();
         $thisYearData = $commonServices->calcOffDays($weekendOffDays, $this->hired_on);
         $holidaysThisYear = $commonServices->countHolidays($this->hired_on);
@@ -205,10 +202,7 @@ class Employee extends Authenticatable
         $curYear = $now->year;
         $monthEnd = $now->endOfMonth()->format('j');
         $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
         $commonServices = new \App\Services\CommonServices();
         $monthDates = [$curYear, $curMonth, 1, $curYear, $curMonth, $monthEnd];
 
@@ -253,8 +247,11 @@ class Employee extends Authenticatable
 
 
         $shiftHours = $this->activeShiftPeriod();
-        $expectedHours = $workingDays * $shiftHours;
-        $expectedHoursSoFar = $workingDaysSoFar * $shiftHours;
+        $regularDutyHours = $this->activeShift()?->regular_duty_hours ?? 8.0;
+        $effectiveHours = min($shiftHours, $regularDutyHours);
+        
+        $expectedHours = $workingDays * $effectiveHours;
+        $expectedHoursSoFar = $workingDaysSoFar * $effectiveHours;
 
         return [
             "YearStats" => $this->getYearStats($globalSettings),
@@ -285,10 +282,7 @@ class Employee extends Authenticatable
         $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
 
         $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
 
         // Calculations for the entire month
         $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
@@ -307,7 +301,8 @@ class Employee extends Authenticatable
             });
 
         $shiftHours = $this->activeShiftPeriod();
-        $expectedHours = $workingDays * $shiftHours;
+        $regularDutyHours = $this->activeShift()?->regular_duty_hours ?? 8.0;
+        $expectedHours = $workingDays * min($shiftHours, $regularDutyHours);
 
         return [
             "expectedHours" => $expectedHours,
@@ -325,10 +320,7 @@ class Employee extends Authenticatable
         $periodDates = [$start->year, $start->month, $start->day, $end->year, $end->month, $end->day];
 
         $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
 
         $totalDays = $start->diffInDays($end) + 1;
 
@@ -348,7 +340,8 @@ class Employee extends Authenticatable
             });
 
         $shiftHours = $this->activeShiftPeriod();
-        $expectedHours = $workingDays * $shiftHours;
+        $regularDutyHours = $this->activeShift()?->regular_duty_hours ?? 8.0;
+        $expectedHours = $workingDays * min($shiftHours, $regularDutyHours);
 
         return [
             "expectedHours" => $expectedHours,
@@ -357,5 +350,13 @@ class Employee extends Authenticatable
         ];
     }
 
+    public function loans()
+    {
+        return $this->hasMany(Loan::class);
+    }
 
+    public function advancePayments()
+    {
+        return $this->hasMany(AdvancePayment::class);
+    }
 }

@@ -35,7 +35,6 @@ const basicInfo = computed(() => {
         [__('ID')]: [props.shift.id],
         [__('Start Time')]: [props.shift.start_time],
         [__('End Time')]: [props.shift.end_time],
-        [__('Shift Payment Multiplier')]: [props.shift.shift_payment_multiplier],
         [__('Number of Employees')]: [props.shift.employees_count],
         [__('Description')]: [props.shift.description],
     };

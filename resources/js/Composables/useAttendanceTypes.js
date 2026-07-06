@@ -4,4 +4,6 @@ export const attendance_types = {
     on_time: __('On Time'),
     late: __('Late'),
     missed: __('Missed'),
+    leave: __('Leave'),
+    absent: __('Absent'),
 }

@@ -34,6 +34,136 @@ class PayrollServices
         }
         return to_route('payrolls.show', ['payroll' => $payroll]);
     }
+    public function recalculatePayroll($id, $res = null)
+    {
+        $payroll = Payroll::findOrFail($id);
+        $employee = $payroll->employee;
+        $year = $payroll->payroll_year;
+        $month = $payroll->payroll_month;
+
+        if (!$year || !$month) {
+            // Fallback for older payrolls without month/year
+            $startDate = Carbon::parse($payroll->period_start);
+            $year = $startDate->year;
+            $month = $startDate->month;
+        }
+
+        $monthEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('j');
+        $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
+
+        $commonServices = new \App\Services\CommonServices();
+        $weekendOffDays = [$employee->weekly_off_day];
+
+        $holidaysCount = $commonServices->countHolidays($employee->hired_on, $monthDates);
+        $weekendsCount = $commonServices->calcOffDays($weekendOffDays, $employee->hired_on, $monthDates);
+        
+        $attendableDays = $monthEnd - $holidaysCount - $weekendsCount;
+
+        $attended = \App\Models\Attendance::where('employee_id', $employee->id)
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->whereNotIn('status', ['missed', 'absent'])
+            ->count();
+            
+        $absented = \App\Models\Attendance::where('employee_id', $employee->id)
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->whereIn('status', ['missed', 'absent'])
+            ->count();
+            
+        // Leaves would be recorded in a Leaves table or as a specific attendance status. 
+        // Currently, they just use 'absent' / 'missed'. Let's say 0 for now.
+        $leaveDays = 0; 
+
+        $hours = $employee->monthHours($year, $month);
+
+        $extraHourRate = $res['extra_hour_rate'] ?? $payroll->additions->extra_hour_rate ?? 0;
+        $negativeHourRate = $res['negative_hour_rate'] ?? $payroll->deductions->negative_hour_rate ?? 0;
+
+        $overtimeHours = $hours['hoursDifference'] > 0 ? $hours['hoursDifference'] : 0;
+        $overtime = $overtimeHours * $extraHourRate;
+        
+        $undertimeHours = $hours['hoursDifference'] < 0 ? $hours['hoursDifference'] * -1 : 0;
+        $undertime = $undertimeHours * $negativeHourRate;
+
+        $income_tax = (Globals::first()->income_tax / 100) * $payroll->base;
+
+        // Loans & Advances
+        $loanDeduction = $res['loan_deduction'] ?? 0;
+        if (!isset($res['loan_deduction'])) {
+            $activeLoans = \App\Models\Loan::where('employee_id', $employee->id)->where('status', 'active')->get();
+            foreach ($activeLoans as $loan) {
+                $deduction = $payroll->base * ($loan->deduction_percentage / 100);
+                $loanDeduction += min($deduction, $loan->remaining_balance);
+            }
+        }
+
+        $advancePaymentDeduction = $res['advance_payment_deduction'] ?? 0;
+        if (!isset($res['advance_payment_deduction'])) {
+            $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $employee->id)->where('status', 'approved')->get();
+            $advancePaymentDeduction = $activeAdvances->sum('remaining_amount');
+        }
+
+        $payroll->additions->update([
+            'custom_items' => $res['custom_additions'] ?? $payroll->additions->custom_items ?? [],
+            'overtime' => $overtime,
+            'extra_hour_rate' => $extraHourRate,
+            'status' => true,
+        ]);
+
+        $payroll->deductions->update([
+            'income_tax' => $income_tax,
+            'custom_items' => $res['custom_deductions'] ?? $payroll->deductions->custom_items ?? [],
+            'undertime' => $undertime,
+            'negative_hour_rate' => $negativeHourRate,
+            'loan_deduction' => $loanDeduction,
+            'advance_payment_deduction' => $advancePaymentDeduction,
+            'status' => true,
+        ]);
+
+        if (isset($res['metrics'])) {
+            for ($i = 0; $i < count($payroll->evaluations); $i++) {
+                $ev = $payroll->evaluations[$i];
+                $grade = $ev->metric->findGrade($res['metrics'][$i]);
+                $payroll->evaluations[$i]->where([
+                    'metric_id' => $res['metricsIDs'][$i],
+                    'payroll_id' => $payroll->id,
+                    'employee_id' => $payroll->employee_id,
+                ])->update([
+                    // [GRADE - WEIGHT - STEP - WEIGHTED POINT]
+                    'score' => [$grade, $ev->metric->weight, $ev->metric->step,
+                        round(1 + (abs(1 - $res['metrics'][$i]) * $ev->metric->weight * ($res['metrics'][$i] > 1 ? 1 : -1)), 2)],
+                ]);
+            }
+        }
+
+        $multiplier = $res['performance_multiplier'] ?? $payroll->performance_multiplier ?? 1;
+
+        $monthlySalary = $payroll->base;
+        $dailySalary = $attendableDays > 0 ? $monthlySalary / $attendableDays : 0;
+        $grossSalary = ($monthlySalary * $multiplier) + $payroll->additions->getSum();
+        $netSalary = $grossSalary - $payroll->deductions->getSum();
+
+        $payroll->update([
+            'monthly_salary' => $monthlySalary,
+            'daily_salary' => $dailySalary,
+            'regular_working_days' => $attendableDays,
+            'absent_days' => $absented,
+            'leave_days' => $leaveDays,
+            'overtime_hours' => $overtimeHours,
+            'overtime_amount' => $overtime,
+            'performance_multiplier' => $multiplier,
+            'total_deductions' => $payroll->deductions->getSum(),
+            'total_additions' => $payroll->additions->getSum(),
+            'total_payable' => $netSalary,
+            'gross_salary' => $grossSalary,
+            'net_salary' => $netSalary,
+            'is_reviewed' => isset($res) ? true : $payroll->is_reviewed,
+        ]);
+
+        return $payroll;
+    }
+
     public function updatePayroll($res, $id)
     {
         $payroll = Payroll::findOrFail($id);
@@ -41,67 +171,10 @@ class PayrollServices
         if ($res['quick_pay']) {
             return $this->quickPay($payroll, $res);
         }
-
-        $shiftDifferentials = (($payroll->employee->activeShift()?->shift_payment_multiplier ?? 1) - 1) * $payroll->base;
         
-        if ($payroll->period_start && $payroll->period_end) {
-            $hours = $payroll->employee->periodHours($payroll->period_start, $payroll->period_end);
-        } else {
-            $hours = $payroll->employee->monthHours(Carbon::parse($payroll->due_date)->subMonthNoOverflow()->year,
-                Carbon::parse($payroll->due_date)->subMonthNoOverflow()->month);
-        }
-        $overtime = $hours['hoursDifference'] > 0 ? $hours['hoursDifference'] * $res['extra_hour_rate'] : 0;
-        $undertime = $hours['hoursDifference'] < 0 ? $hours['hoursDifference'] * $res['negative_hour_rate'] * -1 : 0; // * -1 to get +ve value, as hoursDifference is -ve
-        $income_tax = (Globals::first()->income_tax / 100) * $payroll->base;
-
-        $payroll->additions->update([
-            'rewards' => $res['rewards'],
-            'incentives' => $res['incentives'],
-            'reimbursements' => $res['reimbursements'],
-            'shift_differentials' => $shiftDifferentials,
-            'commissions' => $res['commissions'],
-            'overtime' => $overtime,
-            'extra_hour_rate' => $res['extra_hour_rate'],
-            'status' => true,
-        ]);
-
-        $payroll->deductions->update([
-            'income_tax' => $income_tax,
-            'social_security_contributions' => $res['social_security_contributions'],
-            'health_insurance' => $res['health_insurance'],
-            'retirement_plan' => $res['retirement_plan'],
-            'benefits' => $res['benefits'],
-            'union_fees' => $res['union_fees'],
-            'undertime' => $undertime,
-            'negative_hour_rate' => $res['negative_hour_rate'],
-            'status' => true,
-        ]);
-
-        for ($i = 0; $i < count($payroll->evaluations); $i++) {
-            $ev = $payroll->evaluations[$i];
-            $grade = $ev->metric->findGrade($res['metrics'][$i]);
-            $payroll->evaluations[$i]->where([
-                'metric_id' => $res['metricsIDs'][$i],
-                'payroll_id' => $payroll->id,
-                'employee_id' => $payroll->employee_id,
-            ])->update([
-                // [GRADE - WEIGHT - STEP - WEIGHTED POINT]
-                'score' => [$grade, $ev->metric->weight, $ev->metric->step,
-                    round(1 + (abs(1 - $res['metrics'][$i]) * $ev->metric->weight * ($res['metrics'][$i] > 1 ? 1 : -1)), 2)],
-            ]);
-        }
-
-        $payroll->update([
-            'performance_multiplier' => $res['performance_multiplier'],
-            'total_deductions' => $payroll->deductions->getSum(),
-            'total_additions' => $payroll->additions->getSum(),
-            'total_payable' => $payroll->base * $res['performance_multiplier'] + $payroll->additions->getSum() - $payroll->deductions->getSum(),
-            'is_reviewed' => true,
-        ]);
+        $payroll = $this->recalculatePayroll($id, $res);
 
         return to_route('payrolls.show', ['payroll' => $payroll]);
-
-
     }
 
     public function updatePayrollStatus($request, $id){
@@ -117,8 +190,66 @@ class PayrollServices
             'status' => $request->status,
         ]);
 
+        if ($request->status) {
+            $this->applyDeductionsToBalances($payroll);
+        }
+
         if ($request->sendEmail && $payroll->status) {
             Mail::to($payroll->employee->email)->queue(new PayrollEmail($payroll));
+        }
+    }
+
+    private function applyDeductionsToBalances(Payroll $payroll)
+    {
+        $loanDeduction = $payroll->deductions->loan_deduction ?? 0;
+        $advanceDeduction = $payroll->deductions->advance_payment_deduction ?? 0;
+
+        if ($loanDeduction > 0) {
+            $activeLoans = \App\Models\Loan::where('employee_id', $payroll->employee_id)
+                ->where('status', 'active')
+                ->get();
+            
+            $remainingDeduction = $loanDeduction;
+
+            foreach ($activeLoans as $loan) {
+                if ($remainingDeduction <= 0) break;
+
+                $amountToDeduct = min($remainingDeduction, $loan->remaining_balance);
+                
+                $loan->paid_amount += $amountToDeduct;
+                $loan->remaining_balance -= $amountToDeduct;
+                
+                if ($loan->remaining_balance <= 0) {
+                    $loan->status = 'completed';
+                }
+                
+                $loan->save();
+                $remainingDeduction -= $amountToDeduct;
+            }
+        }
+
+        if ($advanceDeduction > 0) {
+            $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $payroll->employee_id)
+                ->where('status', 'approved')
+                ->get();
+            
+            $remainingDeduction = $advanceDeduction;
+
+            foreach ($activeAdvances as $advance) {
+                if ($remainingDeduction <= 0) break;
+
+                $amountToDeduct = min($remainingDeduction, $advance->remaining_amount);
+                
+                $advance->deducted_amount += $amountToDeduct;
+                $advance->remaining_amount -= $amountToDeduct;
+                
+                if ($advance->remaining_amount <= 0) {
+                    $advance->status = 'completed';
+                }
+                
+                $advance->save();
+                $remainingDeduction -= $amountToDeduct;
+            }
         }
     }
 }

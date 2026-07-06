@@ -134,7 +134,7 @@ class EmployeeController extends Controller
                 ->where('employees.id', $id)
                 ->select(
                     'employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
-                    'employees.address', 'employees.bank_acc_no', 'employees.hired_on',
+                    'employees.address', 'employees.bank_acc_no', 'employees.hired_on', 'employees.weekly_off_day',
                     'employees.department_id', 'employees.branch_id',
                     'branches.name as branch_name', 'employees.device_employee_id'
                 )

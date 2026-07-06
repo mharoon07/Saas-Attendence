@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
+import {Head, Link, router, useForm, usePage} from '@inertiajs/vue3';
 import FlexButton from "@/Components/FlexButton.vue";
 import {onMounted} from "vue";
 import {initModals} from "flowbite";
@@ -71,6 +71,26 @@ const submit = () => {
     })
 };
 
+const destroy = () => {
+    Swal.fire({
+        title: __('Are you sure you want to delete this Payroll?'),
+        text: __('This action cannot be undone.'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: __('Yes, delete it!')
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('payrolls.destroy', {id: props.payroll.id}), {
+                onSuccess: () => {
+                    Swal.fire(__('Deleted!'), __('The Payroll has been deleted.'), 'success')
+                }
+            })
+        }
+    })
+};
+
 onMounted(() => {
     if (usePage().props.errors.end_of_payrolls) {
         Swal.fire({
@@ -115,6 +135,9 @@ onMounted(() => {
                                         <XIcon/>
                                     </GenericButton>
                                 </form>
+                                <button type="button" @click.prevent="destroy" class="text-red-600 hover:text-red-800 ml-4 font-semibold text-sm">
+                                    {{ __('Delete Payroll') }}
+                                </button>
                             </div>
                         </div>
 

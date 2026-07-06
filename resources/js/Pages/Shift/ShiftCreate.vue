@@ -17,8 +17,8 @@ const shiftForm = useForm({
     name: '',
     start_time: '',
     end_time: '',
-    shift_payment_multiplier: '',
     description: '',
+    regular_duty_hours: 8,
 });
 
 const submitShift = () => {
@@ -92,19 +92,21 @@ const submitShift = () => {
                             <InputError class="mt-2" :message="shiftForm.errors.end_time"/>
                         </div>
                         <div class="mt-2">
-                            <InputLabel for="shift_payment_multiplier" :value="__('Multiplier')"/>
+                            <InputLabel for="regular_duty_hours" :value="__('Regular Duty Hours')"/>
                             <TextInput
-                                id="shift_payment_multiplier"
+                                id="regular_duty_hours"
                                 type="number"
                                 class="mt-1 block w-full"
-                                :class="{'border border-red-500': shiftForm.errors.shift_payment_multiplier}"
-                                v-model="shiftForm.shift_payment_multiplier"
+                                :class="{'border border-red-500': shiftForm.errors.regular_duty_hours}"
+                                v-model="shiftForm.regular_duty_hours"
                                 autocomplete="off"
-                                :placeholder="'1 (' + __('default') + ')'"
+                                :placeholder="'8 (' + __('default') + ')'"
                                 min="0"
-                                step="0.0001"
+                                max="24"
+                                step="0.5"
+                                required
                             />
-                            <InputError class="mt-2" :message="shiftForm.errors.shift_payment_multiplier"/>
+                            <InputError class="mt-2" :message="shiftForm.errors.regular_duty_hours"/>
                         </div>
                         <div class="mt-2">
                             <InputLabel for="description" :value="__('Description')"/>

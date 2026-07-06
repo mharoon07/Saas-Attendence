@@ -29,22 +29,49 @@ class DailyAttendanceHandle
             return;
         }
 
-        // Mark all the employees who did not sign off as missed
-        Attendance::where('date', $date)->whereNull('sign_off_time')->update([
-            'status' => 'missed',
-            'notes' => 'Employee did not sign off - Marked as Missed'
-        ]);
+        // Find attendances that haven't signed out
+        $unfinishedAttendances = Attendance::with('employee')->where('date', $date)->whereNull('sign_off_time')->get();
+        $now = \Carbon\Carbon::now();
+        foreach ($unfinishedAttendances as $attendance) {
+            $shift = $attendance->employee->activeShift();
+            if ($shift) {
+                $shiftEnd = \Carbon\Carbon::parse($shift->end_time);
+                $expectedSignOut = \Carbon\Carbon::parse($attendance->date . ' ' . $shift->end_time);
+                if ($shiftEnd->lessThan(\Carbon\Carbon::parse($shift->start_time))) {
+                    $expectedSignOut->addDay();
+                }
+                
+                // If expected sign out is still in the future, don't mark as missed! (e.g. overnight shift)
+                if ($now->lessThan($expectedSignOut)) {
+                    continue;
+                }
+            }
+
+            // Otherwise, mark as missed (e.g. shift ended but auto-sign-out somehow missed them)
+            $attendance->update([
+                'status' => 'missed',
+                'notes' => 'Employee did not sign off - Marked as Missed'
+            ]);
+        }
 
         // If a user does not have attendance taken that day, create a record and mark it as missed
         $employees = Employee::all();
         foreach ($employees as $employee) {
             if (!$employee->attendances()->where('date', $date)->exists()) {
+                $status = 'missed';
+                $notes = 'Automatically Marked as Missed';
+
+                // Check for weekly off day
+                if (strtolower($carbon->englishDayOfWeek) === strtolower($employee->weekly_off_day)) {
+                    continue; // Skip creating a missed/absent/leave record entirely
+                }
+
                 $employee->attendances()->create([
                     'date' => $date,
-                    'status' => 'missed',
+                    'status' => $status,
                     'sign_in_time' => NULL,
                     'sign_off_time' => NULL,
-                    'notes' => 'Automatically Marked as Missed',
+                    'notes' => $notes,
                 ]);
             }
         }

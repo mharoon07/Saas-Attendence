@@ -13,6 +13,11 @@ class EmployeeSalary extends Model
     protected $connection = 'mysql';
     protected $guarded = [];
 
+    protected $casts = [
+        'custom_additions' => 'array',
+        'custom_deductions' => 'array',
+    ];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();

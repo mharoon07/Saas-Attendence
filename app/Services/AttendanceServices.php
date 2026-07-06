@@ -82,15 +82,36 @@ class AttendanceServices
         if ($isDayOff) {
             return response()->json(['message' => 'Cannot create attendance for a day off.']);
         }
+        
+        $reqDate = Carbon::createFromFormat('Y-m-d', $res['date']);
+        if ($reqDate->month !== Carbon::today()->month || $reqDate->year !== Carbon::today()->year) {
+            return response()->json(['message' => 'Manual attendance creation is only allowed for the current month.']);
+        }
 
         for ($i = 0; $i < count($res['employee_id']); $i++) {
+            $empId = $res['employee_id'][$i];
+            $status = $res['status'][$i];
+
+            // Evaluate Leave Status
+            if ($status === 'leave') {
+                $leaveCount = Attendance::where('employee_id', $empId)
+                    ->whereMonth('date', $reqDate->month)
+                    ->whereYear('date', $reqDate->year)
+                    ->where('status', 'leave')
+                    ->where('date', '!=', $res['date'])
+                    ->count();
+                
+                if ($leaveCount >= 4) {
+                    $status = 'absent';
+                }
+            }
 
             // Logic for updating needs to happen here
-            $empAtt = Employee::find($res['employee_id'][$i])->attendances()->where('date', $res['date'])->get();
+            $empAtt = Employee::find($empId)->attendances()->where('date', $res['date'])->get();
             // If there is an attendance record for the employee on the date, update it
             if (count($empAtt) > 0) {
                 $empAtt[0]->update([
-                    'status' => $res['status'][$i],
+                    'status' => $status,
                     'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
                     'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
                     'notes' => $res['notes'][$i],
@@ -105,8 +126,8 @@ class AttendanceServices
             // If there is no attendance record for the employee on the date, create it
             Attendance::create([
                 'date' => $res['date'],
-                'employee_id' => $res['employee_id'][$i],
-                'status' => $res['status'][$i],
+                'employee_id' => $empId,
+                'status' => $status,
                 'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
                 'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
                 'notes' => $res['notes'][$i],

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {Head, Link, useForm} from '@inertiajs/vue3';
+import {Head, Link, useForm, router} from '@inertiajs/vue3';
 import {useToast} from "vue-toastification";
 import Swal from "sweetalert2";
 import PayrollTabs from "@/Components/Tabs/PayrollTabs.vue";
@@ -30,10 +30,42 @@ const props = defineProps({
     deductions: Object,
     hours: Object,
     income_tax: Number,
-    shift_modifier: Number,
     performance_multiplier: Number,
     metrics: Object,
+    attendances: Array,
 });
+
+const attendanceForm = useForm({
+    attendance_id: '',
+    status: '',
+    sign_in_time: '',
+    sign_off_time: '',
+});
+
+const editingAttendanceId = ref(null);
+
+const editAttendance = (att) => {
+    editingAttendanceId.value = att.id;
+    attendanceForm.attendance_id = att.id;
+    attendanceForm.status = att.status;
+    attendanceForm.sign_in_time = att.sign_in_time ? att.sign_in_time.substring(0, 5) : '';
+    attendanceForm.sign_off_time = att.sign_off_time ? att.sign_off_time.substring(0, 5) : '';
+};
+
+const cancelAttendanceEdit = () => {
+    editingAttendanceId.value = null;
+    attendanceForm.reset();
+};
+
+const updateAttendance = () => {
+    attendanceForm.put(route('payrolls.updateAttendance', { id: props.payroll.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            useToast().success(__('Attendance Updated'));
+            cancelAttendanceEdit();
+        }
+    });
+};
 
 const form = useForm({
 
@@ -42,19 +74,14 @@ const form = useForm({
     quick_pay_send_email: ref(true),
 
     // Additions
-    rewards: props.additions.rewards,
-    incentives: props.additions.incentives,
-    reimbursements: props.additions.reimbursements,
-    commissions: props.additions.commissions,
+    custom_additions: props.additions.custom_items || [],
     extra_hour_rate: props.additions.extra_hour_rate,
 
     // Deductions
-    social_security_contributions: props.deductions.social_security_contributions,
-    health_insurance: props.deductions.health_insurance,
-    retirement_plan: props.deductions.retirement_plan,
-    benefits: props.deductions.benefits,
-    union_fees: props.deductions.union_fees,
+    custom_deductions: props.deductions.custom_items || [],
     negative_hour_rate: props.deductions.negative_hour_rate,
+    loan_deduction: props.deductions.loan_deduction ?? 0,
+    advance_payment_deduction: props.deductions.advance_payment_deduction ?? 0,
 
     // Metric Multiplier
     metricsIDs: props.metrics.map(metric => metric.id),
@@ -62,7 +89,6 @@ const form = useForm({
     performance_multiplier: ref(props.performance_multiplier),
 });
 
-const shift_multiplier = (((props.shift_modifier - 1)) * parseInt(props.payroll.base)).toFixed(2);
 const income_tax_calc = ((props.income_tax.income_tax / 100) * props.payroll.base).toFixed(2);
 const extraHours = props.hours.hoursDifference > 0 ? props.hours.hoursDifference : 0;
 const negativeHours = props.hours.hoursDifference < 0 ? props.hours.hoursDifference : 0;
@@ -79,26 +105,42 @@ const recommended_multiplier = computed(() => {
 });
 
 const total_additions = computed(() => {
+    let customSum = 0;
+    form.custom_additions.forEach(item => {
+        customSum += parseFloat(item.amount) || 0;
+    });
     return form.quick_pay ? 0 : (
-        parseFloat(shift_multiplier) +
         parseFloat((extraHours * form.extra_hour_rate)) +
-        parseFloat(form.rewards) + parseFloat(form.incentives) +
-        parseFloat(form.reimbursements) +
-        parseFloat(form.commissions)
+        customSum
     ).toFixed(2);
 });
 
 const total_deductions = computed(() => {
+    let customSum = 0;
+    form.custom_deductions.forEach(item => {
+        customSum += parseFloat(item.amount) || 0;
+    });
     return form.quick_pay ? 0 : (
         parseFloat(income_tax_calc) +
-        parseFloat(form.social_security_contributions) +
-        parseFloat(form.health_insurance) +
-        parseFloat(form.retirement_plan) +
-        parseFloat(form.benefits) +
-        parseFloat(form.union_fees) +
-        parseFloat(Math.abs(negativeHours) * form.negative_hour_rate)
+        parseFloat(Math.abs(negativeHours) * form.negative_hour_rate) +
+        parseFloat(form.loan_deduction) +
+        parseFloat(form.advance_payment_deduction) +
+        customSum
     ).toFixed(2);
 });
+
+const addCustomAddition = () => {
+    form.custom_additions.push({ name: '', amount: 0 });
+};
+const removeCustomAddition = (index) => {
+    form.custom_additions.splice(index, 1);
+};
+const addCustomDeduction = () => {
+    form.custom_deductions.push({ name: '', amount: 0 });
+};
+const removeCustomDeduction = (index) => {
+    form.custom_deductions.splice(index, 1);
+};
 
 onMounted(() => {
     form.performance_multiplier = ref(recommended_multiplier.value);
@@ -135,6 +177,25 @@ const submit = () => {
     })
 };
 
+const destroy = () => {
+    Swal.fire({
+        title: __('Are you sure you want to delete this Payroll?'),
+        text: __('This action cannot be undone.'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: __('Yes, delete it!')
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('payrolls.destroy', {id: props.payroll.id}), {
+                onSuccess: () => {
+                    Swal.fire(__('Deleted!'), __('The Payroll has been deleted.'), 'success')
+                }
+            })
+        }
+    })
+};
 
 </script>
 <template>
@@ -185,35 +246,83 @@ const submit = () => {
                 <Card>
                     <h1 class="card-header">{{ __('Attendance Data') }}</h1>
                     <DescriptionList class="!pb-0">
-
                         <DescriptionListItem colored>
                             <DT>{{ __('Attendable Days') }}</DT>
-                            <DD>{{ month_stats['attendable_days']  + ' ' + __('Day')}}</DD>
+                            <DD>{{ payroll.regular_working_days + ' ' + __('Day')}}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem colored>
-                            <DT>{{ __('Attended') }}</DT>
-                            <DD>{{ month_stats['attended']  + ' ' + __('Day')}}</DD>
-                        </DescriptionListItem>
-
-                        <DescriptionListItem>
-                            <DT>{{ __('Attended Late') }}</DT>
-                            <DD>{{ month_stats['absented']  + ' ' + __('Day')}}</DD>
+                            <DT>{{ __('Leave Days') }}</DT>
+                            <DD>{{ payroll.leave_days + ' ' + __('Day')}}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem>
                             <DT>{{ __('Absented') }}</DT>
-                            <DD>{{ month_stats['late']  + ' ' + __('Day')}}</DD>
+                            <DD>{{ payroll.absent_days + ' ' + __('Day')}}</DD>
                         </DescriptionListItem>
 
-                        <DescriptionListItem colored>
-                            <DT>{{ hours.hoursDifference > 0 ? __('Extra Hours') :
-                                ( hours.hoursDifference < 0 ?  __('Negative Hours') : __('Hours'))}}</DT>
-                            <DD>{{ hours.hoursDifference + ' ' + __('Hour')}}</DD>
+                        <DescriptionListItem>
+                            <DT>{{ __('Overtime Hours') }}</DT>
+                            <DD>{{ payroll.overtime_hours + ' ' + __('Hour')}}</DD>
                         </DescriptionListItem>
-                        <DescriptionListItem colored></DescriptionListItem>
-
                     </DescriptionList>
+                    
+                    <div class="mt-8">
+                        <h2 class="card-header">{{ __('Month Attendances') }}</h2>
+                        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3">{{ __('Date') }}</th>
+                                    <th scope="col" class="px-6 py-3">{{ __('Status') }}</th>
+                                    <th scope="col" class="px-6 py-3">{{ __('Sign In') }}</th>
+                                    <th scope="col" class="px-6 py-3">{{ __('Sign Off') }}</th>
+                                    <th scope="col" class="px-6 py-3">{{ __('Action') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="att in attendances" :key="att.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    <td class="px-6 py-4">{{ att.date }}</td>
+                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                        <select v-model="attendanceForm.status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
+                                            <option value="on_time">{{ __('On Time') }}</option>
+                                            <option value="late">{{ __('Late') }}</option>
+                                            <option value="absent">{{ __('Absent') }}</option>
+                                            <option value="missed">{{ __('Missed') }}</option>
+                                            <option value="early_departure">{{ __('Early Departure') }}</option>
+                                            <option value="leave">{{ __('Leave') }}</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4" v-else>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="{
+                                            'bg-green-100 text-green-800': att.status === 'on_time',
+                                            'bg-yellow-100 text-yellow-800': att.status === 'late',
+                                            'bg-red-100 text-red-800': ['absent', 'missed'].includes(att.status),
+                                            'bg-blue-100 text-blue-800': att.status === 'leave',
+                                            'bg-orange-100 text-orange-800': att.status === 'early_departure'
+                                        }">{{ __(att.status.replace('_', ' ')) }}</span>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                        <input type="time" v-model="attendanceForm.sign_in_time" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
+                                    </td>
+                                    <td class="px-6 py-4" v-else>{{ att.sign_in_time || '-' }}</td>
+
+                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                        <input type="time" v-model="attendanceForm.sign_off_time" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
+                                    </td>
+                                    <td class="px-6 py-4" v-else>{{ att.sign_off_time || '-' }}</td>
+
+                                    <td class="px-6 py-4 text-right">
+                                        <div v-if="editingAttendanceId === att.id" class="flex gap-2">
+                                            <button @click="updateAttendance" class="font-medium text-green-600 dark:text-green-500 hover:underline">{{ __('Save') }}</button>
+                                            <button @click="cancelAttendanceEdit" class="font-medium text-red-600 dark:text-red-500 hover:underline">{{ __('Cancel') }}</button>
+                                        </div>
+                                        <button v-else @click="editAttendance(att)" class="font-medium text-purple-600 dark:text-purple-500 hover:underline">{{ __('Edit') }}</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </Card>
 
                 <Card>
@@ -255,19 +364,7 @@ const submit = () => {
                             </template>
 
                             <!--Iterate Here-->
-                            <template #Body>
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Shift Differentials') }}
-                                        <ToolTip>
-                                            {{ __('This value is obtained from the current employee\'s shift multiplier, which is :SD', {SD: shift_modifier * 100 + '%'}) }}
-                                        </ToolTip>
-                                    </TableBodyHeader>
-                                    <TableBody>{{ (shift_modifier - 1) * 100 + '%' }}</TableBody>
-                                    <TableBody>{{ (shift_modifier - 1) * 100 + '% * ' + payroll.base }}</TableBody>
-                                    <TableBody>{{ shift_multiplier }}</TableBody>
-                                </TableRow>
-
-                                <TableRow :class="{'cursor-not-allowed':extraHours<=0}">
+                            <template #Body>                                <TableRow :class="{'cursor-not-allowed':extraHours<=0}">
                                     <TableBodyHeader>{{ __('Extra Hours Compensation') }}</TableBodyHeader>
                                     <TableBody v-if="extraHours>0" class="!pl-0">
                                         <TextInput
@@ -285,42 +382,32 @@ const submit = () => {
                                     <TableBody>{{ (extraHours * form.extra_hour_rate).toFixed(2) }}</TableBody>
                                 </TableRow>
 
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Rewards') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="w-full mt-1 block" v-model="form.rewards"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody></TableBody>
-                                    <TableBody>{{ form.rewards }}</TableBody>
+                                <TableRow v-for="(item, index) in form.custom_additions" :key="index">
+                                    <TableBodyHeader>
+                                        <TextInput
+                                            type="text" class="w-full mt-1 block" v-model="item.name"
+                                            autocomplete="off" placeholder="Name"
+                                        />
+                                    </TableBodyHeader>
+                                    <TableBody class="!pl-0">
+                                        <TextInput
+                                            type="number" class="w-full mt-1 block" v-model="item.amount"
+                                            autocomplete="off" step="0.01" min="0" placeholder="0"
+                                        />
+                                    </TableBody>
+                                    <TableBody>
+                                        <button @click.prevent="removeCustomAddition(index)" type="button" class="text-red-500 hover:text-red-700 text-sm font-semibold">
+                                            {{ __('Remove') }}
+                                        </button>
+                                    </TableBody>
+                                    <TableBody>{{ item.amount }}</TableBody>
                                 </TableRow>
                                 <TableRow>
-                                    <TableBodyHeader>{{ __('Incentives') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="w-full mt-1 block" v-model="form.incentives"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody></TableBody>
-                                    <TableBody>{{ form.incentives }}</TableBody>
-                                </TableRow>
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Reimbursements') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="w-full mt-1 block"
-                                        v-model="form.reimbursements"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody></TableBody>
-                                    <TableBody>{{ form.reimbursements }}</TableBody>
-                                </TableRow>
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Commissions') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="w-full mt-1 block" v-model="form.commissions"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody></TableBody>
-                                    <TableBody>{{ form.commissions }}</TableBody>
+                                    <TableBody colspan="4" class="text-center pt-4">
+                                        <button @click.prevent="addCustomAddition" type="button" class="text-purple-600 hover:text-purple-800 font-semibold text-sm">
+                                            + {{ __('Add Custom Addition') }}
+                                        </button>
+                                    </TableBody>
                                 </TableRow>
                                 <TableRow>
                                     <TableBodyHeader>{{ __('Total') }}</TableBodyHeader>
@@ -376,51 +463,58 @@ const submit = () => {
                                     <TableBody>{{(Math.abs(negativeHours) * form.negative_hour_rate).toFixed(2)}}
                                     </TableBody>
                                 </TableRow>
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Social Security Contributions') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="mt-1 block"
-                                        v-model="form.social_security_contributions"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody>-</TableBody>
-                                    <TableBody>{{ form.social_security_contributions }}</TableBody>
+                                <TableRow v-for="(item, index) in form.custom_deductions" :key="index">
+                                    <TableBodyHeader>
+                                        <TextInput
+                                            type="text" class="w-full mt-1 block" v-model="item.name"
+                                            autocomplete="off" placeholder="Name"
+                                        />
+                                    </TableBodyHeader>
+                                    <TableBody class="!pl-0">
+                                        <TextInput
+                                            type="number" class="w-full mt-1 block" v-model="item.amount"
+                                            autocomplete="off" step="0.01" min="0" placeholder="0"
+                                        />
+                                    </TableBody>
+                                    <TableBody>
+                                        <button @click.prevent="removeCustomDeduction(index)" type="button" class="text-red-500 hover:text-red-700 text-sm font-semibold">
+                                            {{ __('Remove') }}
+                                        </button>
+                                    </TableBody>
+                                    <TableBody>{{ item.amount }}</TableBody>
                                 </TableRow>
                                 <TableRow>
-                                    <TableBodyHeader>{{ __('Health Insurance') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="mt-1 block" v-model="form.health_insurance"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody>-</TableBody>
-                                    <TableBody>{{ form.health_insurance }}</TableBody>
+                                    <TableBody colspan="4" class="text-center pt-4">
+                                        <button @click.prevent="addCustomDeduction" type="button" class="text-purple-600 hover:text-purple-800 font-semibold text-sm">
+                                            + {{ __('Add Custom Deduction') }}
+                                        </button>
+                                    </TableBody>
                                 </TableRow>
                                 <TableRow>
-                                    <TableBodyHeader>{{ __('Retirement Plan') }}</TableBodyHeader>
+                                    <TableBodyHeader>{{ __('Loan Repayment') }}
+                                        <ToolTip>
+                                            {{ __('Automatically calculated based on active loans.') }}
+                                        </ToolTip>
+                                    </TableBodyHeader>
                                     <TextInput
-                                        id="rewards" type="number" class="mt-1 block" v-model="form.retirement_plan"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
+                                        id="loan_deduction" type="number" class="mt-1 block bg-gray-100" v-model="form.loan_deduction"
+                                        autocomplete="off" step="0.01" min="0" placeholder="0" readonly
                                     />
                                     <TableBody>-</TableBody>
-                                    <TableBody>{{ form.retirement_plan }}</TableBody>
+                                    <TableBody>{{ form.loan_deduction }}</TableBody>
                                 </TableRow>
                                 <TableRow>
-                                    <TableBodyHeader>{{ __('Benefits') }}</TableBodyHeader>
+                                    <TableBodyHeader>{{ __('Advance Payment Recovery') }}
+                                        <ToolTip>
+                                            {{ __('Automatically calculated based on approved advance payments.') }}
+                                        </ToolTip>
+                                    </TableBodyHeader>
                                     <TextInput
-                                        id="rewards" type="number" class="mt-1 block" v-model="form.benefits"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
+                                        id="advance_payment_deduction" type="number" class="mt-1 block bg-gray-100" v-model="form.advance_payment_deduction"
+                                        autocomplete="off" step="0.01" min="0" placeholder="0" readonly
                                     />
                                     <TableBody>-</TableBody>
-                                    <TableBody>{{ form.benefits }}</TableBody>
-                                </TableRow>
-                                <TableRow>
-                                    <TableBodyHeader>{{ __('Union Fees') }}</TableBodyHeader>
-                                    <TextInput
-                                        id="rewards" type="number" class="mt-1 block" v-model="form.union_fees"
-                                        autocomplete="off" step="10" min="0" placeholder="0"
-                                    />
-                                    <TableBody>-</TableBody>
-                                    <TableBody>{{ form.union_fees }}</TableBody>
+                                    <TableBody>{{ form.advance_payment_deduction }}</TableBody>
                                 </TableRow>
                                 <TableRow>
                                     <TableBodyHeader>{{ __('Total') }}</TableBodyHeader>
@@ -574,7 +668,10 @@ const submit = () => {
                             parseFloat(total_additions) - parseFloat(total_deductions)).toLocaleString() }}
                         </span>
                     </div>
-                    <div class="flex justify-end">
+                    <div class="flex justify-end gap-4 mt-4">
+                        <button type="button" @click.prevent="destroy" class="text-white bg-red-700 hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900">
+                            {{ __('Delete Payroll') }}
+                        </button>
                         <form @submit.prevent="submit">
                             <PrimaryButton :class="{ 'opacity-25': form.processing }"
                                            :disabled="form.processing">

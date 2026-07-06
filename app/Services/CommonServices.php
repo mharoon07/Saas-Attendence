@@ -149,11 +149,7 @@ class CommonServices extends Controller
     // $dateArr: [month_year, month, month_start, month_year, month, month_start] - 2 repeated fields #month_year & month
     // Just want to avoid doing logic of modifying the array for calcOffDays() call.
     public function getMonthStats($employee, $dateArr){
-        $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$employee->weekly_off_day];
         return [
             'attendable_days' => $dateArr[5] - $this->calcOffDays($weekendOffDays,
                     $employee->hired_on, $dateArr),
@@ -165,7 +161,7 @@ class CommonServices extends Controller
             'absented' => Attendance::where('employee_id', $employee->id)
                 ->whereYear('date', $dateArr[0])
                 ->whereMonth('date', $dateArr[1])
-                ->where('status', 'missed')
+                ->whereIn('status', ['missed', 'absent'])
                 ->count(),
             'late' => Attendance::where('employee_id', $employee->id)
                 ->whereYear('date', $dateArr[0])

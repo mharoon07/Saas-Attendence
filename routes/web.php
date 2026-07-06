@@ -29,8 +29,14 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::get('devices/{device}/connection-status', [\App\Http\Controllers\DeviceController::class, 'connectionStatus'])->name('devices.connection-status');
     Route::resource('devices', \App\Http\Controllers\DeviceController::class);
 
+    // Loans, Advance Payments, & Cash Maintenance
+    Route::resource('loans', \App\Http\Controllers\LoanController::class);
+    Route::resource('advance-payments', \App\Http\Controllers\AdvancePaymentController::class);
+    Route::resource('cash-transactions', \App\Http\Controllers\CashTransactionController::class);
+
     // Payroll
     Route::put('payrolls/{id}/updateStatus', [\App\Http\Controllers\PayrollController::class, 'updateStatus'])->name('payrolls.updateStatus');
+    Route::put('payrolls/{id}/updateAttendance', [\App\Http\Controllers\PayrollController::class, 'updateAttendance'])->name('payrolls.updateAttendance');
     Route::get('payrolls/{id}/export', [\App\Http\Controllers\PayrollController::class, 'export'])->name('payrolls.export');
     Route::resource('payrolls', \App\Http\Controllers\PayrollController::class);
 
@@ -69,6 +75,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('my-profile', [\App\Http\Controllers\EmployeeController::class, 'showMyProfile'])->name('my-profile');
     Route::resource('requests', \App\Http\Controllers\RequestController::class)->only(['index', 'show', 'create', 'store']);
     Route::resource('payrolls', \App\Http\Controllers\PayrollController::class)->only(['index', 'show']);
+    Route::resource('loans', \App\Http\Controllers\LoanController::class)->only(['index', 'show']);
+    Route::resource('advance-payments', \App\Http\Controllers\AdvancePaymentController::class)->only(['index', 'show']);
+    Route::resource('cash-transactions', \App\Http\Controllers\CashTransactionController::class)->only(['index', 'show']);
     Route::get('calendar', [\App\Http\Controllers\CalendarController::class, 'calendarIndex'])->name('calendar.index');
 
     Route::get('my-attendance', [\App\Http\Controllers\AttendanceController::class, 'attendanceDashboard'])->name('attendance.dashboard');

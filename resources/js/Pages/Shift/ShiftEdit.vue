@@ -26,8 +26,8 @@ const shiftForm = useForm({
     name: props.name,
     start_time: { hours: start_hours, minutes: start_minutes, seconds: start_seconds },
     end_time: { hours: end_hours, minutes: end_minutes, seconds: end_seconds },
-    shift_payment_multiplier: props.shift.shift_payment_multiplier,
     description: props.shift.description,
+    regular_duty_hours: props.shift.regular_duty_hours,
 });
 
 const submitShift = () => {
@@ -84,7 +84,7 @@ const destroy = () => {
         <div class="py-8">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <Card class="!mt-0">
-                    <h1 class="card-header !mb-6">{{__('Edit A Branch')}}</h1>
+                    <h1 class="card-header !mb-6">{{__('Edit A Shift')}}</h1>
                     <form @submit.prevent="submitShift">
                         <div>
                             <InputLabel for="position" :value="__('Shift Name')"/>
@@ -129,19 +129,21 @@ const destroy = () => {
                             <InputError class="mt-2" :message="shiftForm.errors.end_time"/>
                         </div>
                         <div class="mt-2">
-                            <InputLabel for="shift_payment_multiplier" :value="__('Multiplier')"/>
+                            <InputLabel for="regular_duty_hours" :value="__('Regular Duty Hours')"/>
                             <TextInput
-                                id="shift_payment_multiplier"
+                                id="regular_duty_hours"
                                 type="number"
                                 class="mt-1 block w-full"
-                                :class="{'border border-red-500': shiftForm.errors.shift_payment_multiplier}"
-                                v-model="shiftForm.shift_payment_multiplier"
+                                :class="{'border border-red-500': shiftForm.errors.regular_duty_hours}"
+                                v-model="shiftForm.regular_duty_hours"
                                 autocomplete="off"
-                                :placeholder="'1 (' + __('default') + ')'"
+                                :placeholder="'8 (' + __('default') + ')'"
                                 min="0"
-                                step="0.0001"
+                                max="24"
+                                step="0.5"
+                                required
                             />
-                            <InputError class="mt-2" :message="shiftForm.errors.shift_payment_multiplier"/>
+                            <InputError class="mt-2" :message="shiftForm.errors.regular_duty_hours"/>
                         </div>
                         <div class="mt-2">
                             <InputLabel for="description" :value="__('Description')"/>

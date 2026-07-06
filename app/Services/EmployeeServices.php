@@ -30,6 +30,7 @@ class EmployeeServices
             'hired_on' => $res['hired_on'],
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
+            'weekly_off_day' => $res['weekly_off_day'],
             'password' => $res['password'],
             'device_employee_id' => !empty($res['device_employee_id']) ? $res['device_employee_id'] : null,
         ]);
@@ -38,7 +39,11 @@ class EmployeeServices
         EmployeeSalary::create([
             'employee_id' => $emp['id'],
             'currency' => $res['currency'],
-            'salary' => $res['salary'],
+            'monthly_salary' => $res['monthly_salary'],
+            'daily_salary' => $res['monthly_salary'] / 30,
+            'overtime_rate' => $res['overtime_rate'],
+            'custom_additions' => $res['custom_additions'] ?? null,
+            'custom_deductions' => $res['custom_deductions'] ?? null,
             'start_date' => Carbon::createFromFormat('Y-m-d', $res['hired_on'])->addMonth()->startOfMonth(),
             'end_date' => null,
         ]);
@@ -97,6 +102,7 @@ class EmployeeServices
             'hired_on' => $res['hired_on'],
             'branch_id' => $res['branch_id'],
             'department_id' => $res['department_id'],
+            'weekly_off_day' => $res['weekly_off_day'],
             'device_employee_id' => !empty($res['device_employee_id']) ? $res['device_employee_id'] : null,
         ]);
 
@@ -128,14 +134,24 @@ class EmployeeServices
         }
 
         $curSalary = $employee->salaries()->whereNull('end_date')->first();
-        if ($curSalary->salary != $res['salary'] || $curSalary->currency != $res['currency']) {
+        if (
+            $curSalary->monthly_salary != $res['monthly_salary'] ||
+            $curSalary->overtime_rate != $res['overtime_rate'] ||
+            $curSalary->currency != $res['currency'] ||
+            json_encode($curSalary->custom_additions) !== json_encode($res['custom_additions'] ?? null) ||
+            json_encode($curSalary->custom_deductions) !== json_encode($res['custom_deductions'] ?? null)
+        ) {
             $employee->salaries()->whereNull('end_date')->first()->update([
                 'end_date' => Carbon::now()->format('Y-m-d'),
             ]);
             $employee->salaries()->create([
                 'employee_id' => $employee->id,
                 'currency' => $res['currency'],
-                'salary' => $res['salary'],
+                'monthly_salary' => $res['monthly_salary'],
+                'daily_salary' => $res['monthly_salary'] / 30,
+                'overtime_rate' => $res['overtime_rate'],
+                'custom_additions' => $res['custom_additions'] ?? null,
+                'custom_deductions' => $res['custom_deductions'] ?? null,
                 'start_date' => Carbon::now()->format('Y-m-d'),
                 'end_date' => null,
             ]);

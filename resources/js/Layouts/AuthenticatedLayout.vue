@@ -79,8 +79,23 @@ const toggleDark = useToggle(isDark);
                     <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
+                <SidebarListItem :item-name="__('Loans')" link="loans.index"
+                                 :active-links="['loans.index']"
+                >
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
+                <SidebarListItem :item-name="__('Advance Payments')" link="advance-payments.index"
+                                 :active-links="['advance-payments.index']">
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+                <SidebarListItem :item-name="__('Cash Maintenance')" link="cash-transactions.index"
+                                 :active-links="['cash-transactions.index']">
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
                 <SidebarListItem :item-name="__('Reports')" link="reports.index"
-                                 :activeLinks="['reports.index']"
+                                 :active-links="['reports.index']"
                 >
                     <TableIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
@@ -109,6 +124,21 @@ const toggleDark = useToggle(isDark);
 
                 <SidebarListItem :item-name="__('My Payrolls')"
                                  link="payrolls.index" :active-links="['payrolls.index', 'payrolls.show']">
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
+                <SidebarListItem :item-name="__('My Loans')" link="loans.index"
+                                 :active-links="['loans.index']"
+                >
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
+                <SidebarListItem :item-name="__('My Advance Payments')" link="advance-payments.index"
+                                 :active-links="['advance-payments.index']">
+                    <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+                <SidebarListItem :item-name="__('My Cash Maintenance')" link="cash-transactions.index"
+                                 :active-links="['cash-transactions.index']">
                     <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 

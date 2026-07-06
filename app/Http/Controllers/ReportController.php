@@ -110,7 +110,7 @@ class ReportController extends Controller
             $employees = $employeeId === 'all' ? Employee::all() : Employee::where('id', $employeeId)->get();
             $rows = [];
             foreach ($employees as $emp) {
-                $attended = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->where('status', '!=', 'missed')->count();
+                $attended = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->whereNotIn('status', ['missed', 'absent'])->count();
                 try {
                     $late = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->where('status', 'late')->count();
                 } catch (\Exception $e) {
@@ -152,7 +152,7 @@ class ReportController extends Controller
             $employees = $employeeId === 'all' ? Employee::all() : Employee::where('id', $employeeId)->get();
 
             foreach ($employees as $emp) {
-                $attended = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->where('status', '!=', 'missed')->count();
+                $attended = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->whereNotIn('status', ['missed', 'absent'])->count();
                 try {
                     $late = $emp->attendances()->whereYear('date', $year)->whereMonth('date', $month)->where('status', 'late')->count();
                 } catch (\Exception $e) {

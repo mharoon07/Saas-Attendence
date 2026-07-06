@@ -45,6 +45,8 @@ class AttendanceController extends Controller
             $date = Carbon::createFromFormat('Y-m-d', $dateParam)->startOfDay();
             if ($date->isAfter(Carbon::today()))
                 return response()->json(['Error' => 'Date cannot be in the future. Go back and choose a date before today.']);
+            if ($date->month !== Carbon::today()->month || $date->year !== Carbon::today()->year)
+                return response()->json(['Error' => 'Manual attendance marking is only allowed for the current month.']);
 
             $date = $date->toDateString();
         } else {
@@ -79,6 +81,9 @@ class AttendanceController extends Controller
             $date = Carbon::createFromFormat('Y-m-d', urldecode($request->term))->startOfDay();
             if ($date->isAfter(Carbon::today())) {
                 return response()->json(['message' => 'Date cannot be in the future. Go back and choose a date before today.']);
+            }
+            if ($date->month !== Carbon::today()->month || $date->year !== Carbon::today()->year) {
+                return response()->json(['message' => 'Manual attendance creation is only allowed for the current month.']);
             }
             $date = $date->toDateString();
         } else {
@@ -138,6 +143,10 @@ class AttendanceController extends Controller
         $res = $request->validate([
             'date' => 'required|date_format:Y-m-d',
         ]);
+        $date = Carbon::createFromFormat('Y-m-d', urldecode($res['date']))->startOfDay();
+        if ($date->month !== Carbon::today()->month || $date->year !== Carbon::today()->year) {
+            return response()->json(['message' => 'Cannot delete attendance records for past months.']);
+        }
         return $this->attendanceServices->deleteDayAttendance($res);
     }
 

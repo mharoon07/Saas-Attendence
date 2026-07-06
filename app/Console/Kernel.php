@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     {
         // This will use the timezone set at config/app.php
         $schedule->call(new DailyAttendanceHandle())->daily();    // Every Day at 00:00
+        $schedule->command('attendance:auto-sign-out')->everyFiveMinutes(); // Auto sign out
         $schedule->command('activitylog:clean')->twiceMonthly(1, 16, '00:00'); // Clear Activity Log
 
         // Schedule monthly payrolls only if Globals record exists.

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {Head, router} from '@inertiajs/vue3';
+import {Head, Link, router, useForm} from '@inertiajs/vue3';
 import Table from "@/Components/Table/Table.vue";
 import TableHead from "@/Components/Table/TableHead.vue";
 import TableBody from "@/Components/Table/TableBody.vue";
@@ -17,7 +17,6 @@ import Card from "@/Components/Card.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
-import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     payrolls: Object,
@@ -42,8 +41,7 @@ watch(date, filter);
 watch(status, filter);
 const showGenerateModal = ref(false);
 const generateForm = useForm({
-    period_start: '',
-    period_end: '',
+    month_year: null,
     employee_id: '', 
 });
 const generatePayroll = () => {
@@ -54,6 +52,26 @@ const generatePayroll = () => {
             generateForm.reset();
         },
     });
+};
+
+const destroy = (id) => {
+    Swal.fire({
+        title: __('Are you sure you want to delete this Payroll?'),
+        text: __('This action cannot be undone.'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: __('Yes, delete it!')
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('payrolls.destroy', {id}), {
+                onSuccess: () => {
+                    Swal.fire(__('Deleted!'), __('The Payroll has been deleted.'), 'success')
+                }
+            })
+        }
+    })
 };
 
 </script>
@@ -121,23 +139,44 @@ const generatePayroll = () => {
                     </div>
                     <Table :links="payrolls.links" :showingNumber="payrolls.data.length" :totalNumber="payrolls.total">
                         <template #Head>
-                            <TableHead>{{__('Payroll ID')}}</TableHead>
-                            <TableHead>{{__('Employee Name')}}</TableHead>
-                            <TableHead>{{__('Total Amount')}}</TableHead>
-                            <TableHead>{{__('Due Date')}}</TableHead>
+                            <TableHead>{{__('ID')}}</TableHead>
+                            <TableHead>{{__('Month/Year')}}</TableHead>
+                            <TableHead>{{__('Employee')}}</TableHead>
+                            <TableHead>{{__('Monthly Salary')}}</TableHead>
+                            <TableHead>{{__('Daily Salary')}}</TableHead>
+                            <TableHead>{{__('Working Days')}}</TableHead>
+                            <TableHead>{{__('Absent')}}</TableHead>
+                            <TableHead>{{__('Leave')}}</TableHead>
+                            <TableHead>{{__('Overtime (Hrs)')}}</TableHead>
+                            <TableHead>{{__('Overtime Amt')}}</TableHead>
+                            <TableHead>{{__('Additions')}}</TableHead>
+                            <TableHead>{{__('Deductions')}}</TableHead>
+                            <TableHead>{{__('Gross Salary')}}</TableHead>
+                            <TableHead>{{__('Net Salary')}}</TableHead>
                             <TableHead>{{__('Status')}}</TableHead>
                             <TableHead v-if="$page.props.auth.user.roles.includes('admin')">{{__('Action')}}</TableHead>
                         </template>
                          <template #Body>
                             <TableRow v-for="payroll in payrolls.data" :key="payroll.id">
                                 <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.id}}</TableBodyHeader>
+                                <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.payroll_month}}/{{payroll.payroll_year}}</TableBodyHeader>
                                 <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})" >{{payroll.employee_name}}</TableBodyHeader>
-                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.total_payable}}</TableBody>
-                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.due_date}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.monthly_salary}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.daily_salary}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.regular_working_days}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.absent_days}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.leave_days}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.overtime_hours}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.overtime_amount}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.total_additions}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.total_deductions}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.gross_salary}}</TableBody>
+                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.net_salary}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.status  ? "Paid" : (payroll.is_reviewed ? "Reviewed" : "Pending Review")}}</TableBody>
                                 <td class="px-6 py-4" v-if="$page.props.auth.user.roles.includes('admin')">
                                     <a :href="route('payrolls.edit', {id: payroll.id})" class="text-purple-600 hover:underline mr-2">{{__('Edit')}}</a>
-                                    <a :href="route('payrolls.export', {id: payroll.id})" class="text-green-600 hover:underline">{{__('Download')}}</a>
+                                    <a :href="route('payrolls.export', {id: payroll.id})" class="text-green-600 hover:underline mr-2">{{__('Download')}}</a>
+                                    <button @click.prevent="destroy(payroll.id)" class="text-red-600 hover:underline">{{__('Delete')}}</button>
                                 </td>
                             </TableRow>
                         </template>
@@ -153,30 +192,19 @@ const generatePayroll = () => {
                 </h2>     
                 <div class="mt-6 space-y-4">
                     <div>
-                        <InputLabel for="period_start" :value="__('Period Start')" />
+                        <InputLabel for="month_year" :value="__('Payroll Month')" />
                         <VueDatePicker
-                            id="period_start"
-                            v-model="generateForm.period_start"
+                            id="month_year"
+                            v-model="generateForm.month_year"
                             class="py-1 block w-full"
                             :enable-time-picker="false"
+                            :max-date="new Date()"
+                            month-picker
                             :dark="inject('isDark').value"
                             teleport="body"
                             required
                         ></VueDatePicker>
-                        <InputError class="mt-2" :message="generateForm.errors.period_start" />
-                    </div>
-                    <div>
-                        <InputLabel for="period_end" :value="__('Period End')" />
-                        <VueDatePicker
-                            id="period_end"
-                            v-model="generateForm.period_end"
-                            class="py-1 block w-full"
-                            :enable-time-picker="false"
-                            :dark="inject('isDark').value"
-                            teleport="body"
-                            required
-                        ></VueDatePicker>
-                        <InputError class="mt-2" :message="generateForm.errors.period_end" />
+                        <InputError class="mt-2" :message="generateForm.errors.month_year" />
                     </div>
                     <div>
                         <InputLabel for="employee_id" :value="__('Employee (Optional)')" />

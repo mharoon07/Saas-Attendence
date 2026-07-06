@@ -150,6 +150,7 @@ watch(() => form.date, search);
                                 :class="{'border border-red-500': form.errors.date}"
                                 placeholder="Select Date..."
                                 :enable-time-picker="false"
+                                :min-date="new Date(new Date().getFullYear(), new Date().getMonth(), 1)"
                                 :max-date="new Date()"
                                 :dark="inject('isDark').value"
                                 required
@@ -219,6 +220,8 @@ watch(() => form.date, search);
                                             <option value="on_time" selected>{{ attendance_types['on_time'] }}</option>
                                             <option value="late">{{ attendance_types['late'] }}</option>
                                             <option value="missed">{{ attendance_types['missed'] }}</option>
+                                            <option value="leave">{{ attendance_types['leave'] }}</option>
+                                            <option value="absent">{{ attendance_types['absent'] }}</option>
                                         </select>
                                     </td>
                                     <td class="table-td">

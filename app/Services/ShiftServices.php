@@ -16,8 +16,8 @@ class ShiftServices
             'name' => $shift['name'],
             'start_time' => $startTime,
             'end_time' => $endTime,
-            'shift_payment_multiplier' => $shift['shift_payment_multiplier'],
             'description' => $shift['description'],
+            'regular_duty_hours' => $shift['regular_duty_hours'],
         ]);
         return to_route('shifts.index');
     }

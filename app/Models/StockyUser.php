@@ -226,7 +226,7 @@ class StockyUser extends Authenticatable
         if (!$salary) {
             return ['USD', 0, $this->hired_on ?? now()->toDateString()];
         }
-        return [$salary->currency, $salary->salary, $salary->start_date];
+        return [$salary->currency, $salary->monthly_salary, $salary->start_date];
     }
 
     public function activePosition()
@@ -256,31 +256,28 @@ class StockyUser extends Authenticatable
 
     public function getAttended(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->attendances()->where('status', '!=', 'missed');
+        return $this->attendances()->whereNotIn('status', ['missed', 'absent']);
     }
 
     public function getAttendedInYear($year): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->attendances()->where('status', '!=', 'missed')->whereYear('date', $year);
+        return $this->attendances()->whereNotIn('status', ['missed', 'absent'])->whereYear('date', $year);
     }
 
     public function getAbsentedInYear($year): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->attendances()->where('status', '=', 'missed')->whereYear('date', $year);
+        return $this->attendances()->whereIn('status', ['missed', 'absent'])->whereYear('date', $year);
     }
 
     public function getAbsented(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->attendances()->where('status', '=', 'missed');
+        return $this->attendances()->whereIn('status', ['missed', 'absent']);
     }
 
     public function getYearStats($globalSettings = null)
     {
         $globalSettings = $globalSettings ?? Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
         $commonServices = new \App\Services\CommonServices();
         $thisYearData = $commonServices->calcOffDays($weekendOffDays, $this->hired_on);
         $holidaysThisYear = $commonServices->countHolidays($this->hired_on);
@@ -301,10 +298,7 @@ class StockyUser extends Authenticatable
         $curYear = $now->year;
         $monthEnd = $now->endOfMonth()->format('j');
         $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
         $commonServices = new \App\Services\CommonServices();
         $monthDates = [$curYear, $curMonth, 1, $curYear, $curMonth, $monthEnd];
 
@@ -364,10 +358,7 @@ class StockyUser extends Authenticatable
         $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
 
         $globalSettings = Globals::first();
-        $weekendOffDays = $globalSettings ? json_decode($globalSettings->weekend_off_days) : ['friday', 'saturday'];
-        if (!is_array($weekendOffDays)) {
-            $weekendOffDays = ['friday', 'saturday'];
-        }
+        $weekendOffDays = [$this->weekly_off_day];
 
         $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
         $workingDays = $monthEnd - $holidaysCount - $commonServices->calcOffDays($weekendOffDays, $this->hired_on, $monthDates);

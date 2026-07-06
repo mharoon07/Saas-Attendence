@@ -58,6 +58,7 @@ watch(date, search);
                                 class="py-1 block w-full"
                                 :placeholder="__('Select a Date..')"
                                 :enable-time-picker="false"
+                                :min-date="new Date(new Date().getFullYear(), new Date().getMonth(), 1)"
                                 :max-date="new Date()"
                                 :dark="inject('isDark').value"
                                 required
