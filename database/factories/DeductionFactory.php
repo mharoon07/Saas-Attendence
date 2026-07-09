@@ -17,15 +17,17 @@ class DeductionFactory extends Factory
     public function definition(): array
     {
         return [
-            "income_tax" => $this->faker->randomFloat(2, 0, 1000),
-            "social_security_contributions" => $this->faker->randomFloat(2, 0, 1000),
-            "health_insurance" => $this->faker->randomFloat(2, 0, 1000),
-            "retirement_plan" => $this->faker->randomFloat(2, 0, 1000),
-            "benefits" => $this->faker->randomFloat(2, 0, 1000),
-            "union_fees" => $this->faker->randomFloat(2, 0, 1000),
+            'custom_items' => [
+                ['name' => 'Tax', 'amount' => $this->faker->randomFloat(2, 50, 500)],
+                ['name' => 'Insurance', 'amount' => $this->faker->randomFloat(2, 50, 200)]
+            ],
+            "income_tax" => 0,
+            "undertime" => 0,
+            "negative_hour_rate" => 0,
+            "loan_deduction" => 0,
+            "advance_payment_deduction" => 0,
             "due_date" => $this->faker->dateTimeBetween("-1 years", "now")->format("Y-m-d"),
             "status" => $this->faker->boolean,
-            "undertime" => 0,
         ];
     }
 }

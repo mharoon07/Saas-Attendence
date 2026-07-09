@@ -13,7 +13,14 @@ class AttendanceServices
 {
     private function validateIP($ip_to_check): bool
     {
-        $org_ips = json_decode(Globals::first()->ip);
+        $globals = Globals::first();
+        if (!$globals || !$globals->ip) {
+            return false;
+        }
+        $org_ips = json_decode($globals->ip);
+        if (!is_array($org_ips)) {
+            return false;
+        }
         foreach ($org_ips as $org_ip){
             if(str_contains($org_ip, '*')) {
                 $org_ip_segment = explode('*', $org_ip)[0];
@@ -55,6 +62,9 @@ class AttendanceServices
 
         //-- Check IP, If IP-based Attendance is enabled --//
         $globals = Globals::first();
+        if (!$globals) {
+            return [];
+        }
 
         // Checks if ip is enabled but no IPs in the database. This should never happen.
         if ($globals->is_ip_based && is_null($globals->ip)) {

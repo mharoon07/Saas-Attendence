@@ -28,14 +28,14 @@ class AdditionFactory extends Factory
 //            "overtime" => 0,
 //        ];
         return [
-            'rewards' => $this->faker->randomFloat(2, 0, 1000),
-            'incentives' => $this->faker->randomFloat(2, 0, 1000),
-            'reimbursements' => $this->faker->randomFloat(2, 0, 1000),
-            'shift_differentials' => $this->faker->randomFloat(2, 0, 1000),
-            'commissions' => $this->faker->randomFloat(2, 0, 1000),
+            'custom_items' => [
+                ['name' => 'Bonus', 'amount' => $this->faker->randomFloat(2, 50, 500)],
+                ['name' => 'Transport Allowance', 'amount' => $this->faker->randomFloat(2, 50, 200)]
+            ],
             'due_date' => $this->faker->dateTimeBetween('-1 years', 'now')->format('Y-m-d'),
             'status' => $this->faker->boolean,
             "overtime" => 0,
+            "extra_hour_rate" => 0,
         ];
     }
 }

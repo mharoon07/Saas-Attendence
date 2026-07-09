@@ -36,8 +36,23 @@ class PayrollServices
     }
     public function recalculatePayroll($id, $res = null)
     {
-        $payroll = Payroll::findOrFail($id);
+        $payroll = Payroll::with(['employee', 'additions', 'deductions'])->findOrFail($id);
         $employee = $payroll->employee;
+
+        if (!$payroll->additions) {
+            $payroll->additions()->create([
+                'due_date' => $payroll->due_date,
+            ]);
+            $payroll->load('additions');
+        }
+
+        if (!$payroll->deductions) {
+            $payroll->deductions()->create([
+                'due_date' => $payroll->due_date,
+            ]);
+            $payroll->load('deductions');
+        }
+
         $year = $payroll->payroll_year;
         $month = $payroll->payroll_month;
 
@@ -86,7 +101,8 @@ class PayrollServices
         $undertimeHours = $hours['hoursDifference'] < 0 ? $hours['hoursDifference'] * -1 : 0;
         $undertime = $undertimeHours * $negativeHourRate;
 
-        $income_tax = (Globals::first()->income_tax / 100) * $payroll->base;
+        $globals = Globals::first();
+        $income_tax = (($globals ? $globals->income_tax : 14.0) / 100) * $payroll->base;
 
         // Loans & Advances
         $loanDeduction = $res['loan_deduction'] ?? 0;

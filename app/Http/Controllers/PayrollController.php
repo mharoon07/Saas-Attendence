@@ -111,8 +111,12 @@ class PayrollController extends Controller
      */
     public function edit(string $id)
     {
-        $payroll = Payroll::with('employee')->findOrFail($id);
+        $payroll = Payroll::with(['employee', 'additions', 'deductions'])->findOrFail($id);
         $commonServices = new CommonServices();
+
+        if (!$payroll->employee) {
+            return redirect()->route('payrolls.index')->withErrors(['error' => 'Employee associated with this payroll not found.']);
+        }
 
         if ($payroll->period_start && $payroll->period_end) {
             $startDate = Carbon::parse($payroll->period_start);
@@ -172,16 +176,31 @@ class PayrollController extends Controller
             ->whereMonth('date', $payroll->payroll_month ?? Carbon::parse($payroll->period_start)->month)
             ->get();
 
+        $additions = $payroll->additions ? $payroll->additions->toArray() : [
+            'custom_items' => [],
+            'extra_hour_rate' => 0,
+        ];
+
+        $deductions = $payroll->deductions ? $payroll->deductions->toArray() : [
+            'custom_items' => [],
+            'negative_hour_rate' => 0,
+            'loan_deduction' => $loanDeduction,
+            'advance_payment_deduction' => $advancePaymentDeduction,
+        ];
+
+        if ($payroll->deductions) {
+            $deductions['loan_deduction'] = $payroll->deductions->loan_deduction ?? $loanDeduction;
+            $deductions['advance_payment_deduction'] = $payroll->deductions->advance_payment_deduction ?? $advancePaymentDeduction;
+        }
+
+        $incomeTax = Globals::select('income_tax')->first() ?? (object)['income_tax' => 14.0];
+
         return Inertia::render('Payroll/PayrollReview', [
             'payroll' => $payroll,
             "month_stats" => $month_stats,
-            'additions' => $payroll->additions,
-            'deductions' => [
-                ...$payroll->deductions->toArray(),
-                'loan_deduction' => $payroll->deductions->loan_deduction ?? $loanDeduction,
-                'advance_payment_deduction' => $payroll->deductions->advance_payment_deduction ?? $advancePaymentDeduction,
-            ],
-            'income_tax' => Globals::select('income_tax')->get()->first(), // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
+            'additions' => $additions,
+            'deductions' => $deductions,
+            'income_tax' => $incomeTax,
             'hours' => $hours,
             'metrics' => Metric::where('created_at', '<=', $payroll->created_at)->get(),
             'attendances' => $attendances,
