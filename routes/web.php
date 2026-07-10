@@ -183,3 +183,45 @@ Route::get('/debug-storage', function () {
 
     return response()->json($results, 200, [], JSON_PRETTY_PRINT);
 });
+
+// TEMPORARY DEBUG ROUTE — delete after fixing
+Route::get('/debug-loan', function () {
+    $results = [];
+    
+    // Check files
+    $results['Loan_php_exists'] = file_exists(base_path('app/Models/Loan.php'));
+    $results['loan_php_exists_lower'] = file_exists(base_path('app/Models/loan.php'));
+    
+    // List app/Models files
+    $modelsPath = base_path('app/Models');
+    $files = [];
+    if (is_dir($modelsPath)) {
+        foreach (scandir($modelsPath) as $file) {
+            if ($file !== '.' && $file !== '..') {
+                $files[] = $file;
+            }
+        }
+    }
+    $results['models_files'] = $files;
+    
+    // Check classmap
+    $classmapPath = base_path('vendor/composer/autoload_classmap.php');
+    if (file_exists($classmapPath)) {
+        $classmap = require $classmapPath;
+        $results['loan_in_classmap'] = isset($classmap['App\\Models\\Loan']) ? $classmap['App\\Models\\Loan'] : 'NOT FOUND';
+        $results['loan_lower_in_classmap'] = isset($classmap['App\\Models\\loan']) ? $classmap['App\\Models\\loan'] : 'NOT FOUND';
+    } else {
+        $results['classmap_exists'] = false;
+    }
+    
+    // Try running composer dump-autoload programmatically
+    try {
+        $results['composer_path'] = shell_exec('which composer 2>&1') ?: 'not found via which';
+        $results['composer_dump'] = shell_exec('composer dump-autoload 2>&1') ?: 'no output';
+    } catch (\Exception $e) {
+        $results['composer_error'] = $e->getMessage();
+    }
+    
+    return response()->json($results, 200, [], JSON_PRETTY_PRINT);
+});
+
