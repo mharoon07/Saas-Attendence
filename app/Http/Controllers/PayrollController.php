@@ -337,7 +337,20 @@ class PayrollController extends Controller
      */
     public function destroy(string $id)
     {
-        Payroll::findOrFail($id)->delete();
+        if (!isAdmin()) abort(403);
+
+        $payroll = Payroll::findOrFail($id);
+
+        if ($payroll->additions) {
+            $payroll->additions()->delete();
+        }
+        if ($payroll->deductions) {
+            $payroll->deductions()->delete();
+        }
+
+        $payroll->delete();
+
+        return redirect()->route('payrolls.index');
     }
 
     /**
