@@ -158,18 +158,19 @@ class PayrollController extends Controller
         
         $loanDeduction = 0;
         foreach ($activeLoans as $loan) {
-            $deduction = $payroll->base * ($loan->deduction_percentage / 100);
-            if ($deduction > $loan->remaining_balance) {
-                $deduction = $loan->remaining_balance;
+            $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
+            $deduction = $payroll->base * ($pct / 100);
+            if ($deduction <= 0) {
+                $deduction = (float)$loan->remaining_balance;
             }
-            $loanDeduction += $deduction;
+            $loanDeduction += min($deduction, (float)$loan->remaining_balance);
         }
 
         $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $payroll->employee->id)
             ->where('status', 'approved')
             ->get();
         
-        $advancePaymentDeduction = $activeAdvances->sum('remaining_amount');
+        $advancePaymentDeduction = (float)$activeAdvances->sum('remaining_amount');
 
         $attendances = \App\Models\Attendance::where('employee_id', $payroll->employee->id)
             ->whereYear('date', $payroll->payroll_year ?? Carbon::parse($payroll->period_start)->year)
@@ -189,8 +190,13 @@ class PayrollController extends Controller
         ];
 
         if ($payroll->deductions) {
-            $deductions['loan_deduction'] = $payroll->deductions->loan_deduction ?? $loanDeduction;
-            $deductions['advance_payment_deduction'] = $payroll->deductions->advance_payment_deduction ?? $advancePaymentDeduction;
+            $deductions['loan_deduction'] = ((float)$payroll->deductions->loan_deduction > 0)
+                ? (float)$payroll->deductions->loan_deduction
+                : $loanDeduction;
+
+            $deductions['advance_payment_deduction'] = ((float)$payroll->deductions->advance_payment_deduction > 0)
+                ? (float)$payroll->deductions->advance_payment_deduction
+                : $advancePaymentDeduction;
         }
 
         $incomeTax = Globals::select('income_tax')->first() ?? (object)['income_tax' => 14.0];

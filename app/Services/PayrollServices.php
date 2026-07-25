@@ -105,19 +105,27 @@ class PayrollServices
         $income_tax = (($globals ? $globals->income_tax : 14.0) / 100) * $payroll->base;
 
         // Loans & Advances
-        $loanDeduction = $res['loan_deduction'] ?? 0;
-        if (!isset($res['loan_deduction'])) {
+        $loanDeduction = 0;
+        if (isset($res['loan_deduction']) && (float)$res['loan_deduction'] > 0) {
+            $loanDeduction = (float)$res['loan_deduction'];
+        } else {
             $activeLoans = \App\Models\Loan::where('employee_id', $employee->id)->where('status', 'active')->get();
             foreach ($activeLoans as $loan) {
-                $deduction = $payroll->base * ($loan->deduction_percentage / 100);
-                $loanDeduction += min($deduction, $loan->remaining_balance);
+                $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
+                $deduction = $payroll->base * ($pct / 100);
+                if ($deduction <= 0) {
+                    $deduction = (float)$loan->remaining_balance;
+                }
+                $loanDeduction += min($deduction, (float)$loan->remaining_balance);
             }
         }
 
-        $advancePaymentDeduction = $res['advance_payment_deduction'] ?? 0;
-        if (!isset($res['advance_payment_deduction'])) {
+        $advancePaymentDeduction = 0;
+        if (isset($res['advance_payment_deduction']) && (float)$res['advance_payment_deduction'] > 0) {
+            $advancePaymentDeduction = (float)$res['advance_payment_deduction'];
+        } else {
             $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $employee->id)->where('status', 'approved')->get();
-            $advancePaymentDeduction = $activeAdvances->sum('remaining_amount');
+            $advancePaymentDeduction = (float)$activeAdvances->sum('remaining_amount');
         }
 
         $payroll->additions->update([
