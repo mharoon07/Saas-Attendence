@@ -167,7 +167,8 @@ class PayrollController extends Controller
         }
 
         $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $payroll->employee->id)
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'pending'])
+            ->where('remaining_amount', '>', 0)
             ->get();
         
         $advancePaymentDeduction = (float)$activeAdvances->sum('remaining_amount');

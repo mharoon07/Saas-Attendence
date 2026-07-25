@@ -124,7 +124,10 @@ class PayrollServices
         if (isset($res['advance_payment_deduction']) && (float)$res['advance_payment_deduction'] > 0) {
             $advancePaymentDeduction = (float)$res['advance_payment_deduction'];
         } else {
-            $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $employee->id)->where('status', 'approved')->get();
+            $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $employee->id)
+                ->whereIn('status', ['approved', 'pending'])
+                ->where('remaining_amount', '>', 0)
+                ->get();
             $advancePaymentDeduction = (float)$activeAdvances->sum('remaining_amount');
         }
 
@@ -254,7 +257,8 @@ class PayrollServices
 
         if ($advanceDeduction > 0) {
             $activeAdvances = \App\Models\AdvancePayment::where('employee_id', $payroll->employee_id)
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'pending'])
+                ->where('remaining_amount', '>', 0)
                 ->get();
             
             $remainingDeduction = $advanceDeduction;
