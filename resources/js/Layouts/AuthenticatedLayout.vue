@@ -50,7 +50,7 @@ const toggleDark = useToggle(isDark);
                 </SidebarListItem>
 
                 <SidebarListItem :item-name="__('Organization')"
-                                 :active-links-recursive="['branches', 'departments', 'positions', 'shifts', 'globals', 'metrics', 'logs']"
+                                 :active-links-recursive="['branches', 'positions', 'shifts', 'globals', 'metrics', 'logs']"
                                  badge-content="0" link="branches.index">
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>

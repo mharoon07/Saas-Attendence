@@ -658,24 +658,7 @@ const submitShift = () => {
                                     />
                                     <InputError class="mt-2" :message="form.errors.overtime_rate"/>
                                 </div>
-                                <div>
-                                    <InputLabel for="weekly_off_day" :value="__('Weekly Off Day')"/>
-                                    <select
-                                        id="weekly_off_day"
-                                        v-model="form.weekly_off_day"
-                                        :class="{'border border-red-500': form.errors.weekly_off_day}"
-                                        class="mt-1 block w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                    >
-                                        <option value="monday">{{ __('Monday') }}</option>
-                                        <option value="tuesday">{{ __('Tuesday') }}</option>
-                                        <option value="wednesday">{{ __('Wednesday') }}</option>
-                                        <option value="thursday">{{ __('Thursday') }}</option>
-                                        <option value="friday">{{ __('Friday') }}</option>
-                                        <option value="saturday">{{ __('Saturday') }}</option>
-                                        <option value="sunday">{{ __('Sunday') }}</option>
-                                    </select>
-                                    <InputError class="mt-2" :message="form.errors.weekly_off_day"/>
-                                </div>
+                                <div></div>
                             </div>
                             <div class="grid grid-cols-2 gap-8 mt-4">
                                 <div>

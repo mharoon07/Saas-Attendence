@@ -146,65 +146,7 @@ onMounted(() => {
                             />
                             <InputError class="mt-2" :message="form.errors.timezone"/>
                         </div>
-                        <div class="mt-2">
-                            <InputLabel class="inline" for="is_ip_based" :value="__('Enable IP-Based Attendance?')"/>
-                            <ToolTip>
-                                {{__('The set IPs will be used to compare employee attendance\'s IP with it')}}. <br/>
-                                {{__('If the IPs mismatch, it means the employee is registering their attendance')}} <br/>
-                                {{__('from outside the organization. Thus, the attendance will be discarded')}}.<br/>
-                                {{__('You can turn this option off on this page')}}.
-                            </ToolTip>
-                            <div class="block">
-                                <Switch dir="ltr"
-                                    v-model="form.is_ip_based"
-                                    :class="form.is_ip_based ? 'bg-purple-600' : 'bg-gray-400'"
-                                    class="col-span-4 mt-2 relative inline-flex h-6 w-11 items-center rounded-full"
-                                >
-                                    <span
-                                        :class="form.is_ip_based ? 'translate-x-6' : 'translate-x-1'"
-                                        class="inline-block h-4 w-4 transform rounded-full bg-white transition"
-                                    />
-                                </Switch>
-                            </div>
-                            <InputError class="mt-2" :message="form.errors.is_ip_based"/>
-                        </div>
-                        <div class="mt-1">
-                            <InputLabel for="ip"
-                                        :value="__('Organization Public IP Address(es) - Separate multiple values by commas')"
-                                        class="inline"/>
-                            <ToolTip>
-                                {{__('This IP(s) will be used to compare employee attendance\'s IP with it.')}} <br/>
-                                {{__('If the IPs mismatch, it means the employee is registering their attendance')}} <br/>
-                                {{__('from outside the organization. Thus, the attendance will be discarded.')}}<br/>
-                                {{__('You can turn this option off on this page')}}.<br/>
-                                {{__('Note: Supports IPv4 Only')}}.
-                            </ToolTip>
-                            <span v-if="form.is_ip_based" class="block text-xs">
-                                <a @click="fetchIP()" class="underline text-purple-500 "
-                                   href="#">{{__('Grab Yours from Here,')}}</a>
-                                {{__('and make sure you are at your organization while setting this value, otherwise, all employee attendances will be rejected even if they are inside the organization.')}}
-                                <br>
-                                {{__('If this app is hosted locally, you can use \'192.168.1.*\'')}}
-                            </span>
-                            <TextInput
-                                id="timezone"
-                                type="text"
-                                class="mt-1 block w-full"
-                                :class="{'border border-red-500': form.errors.ip,
-                                         'opacity-75 bg-gray-100 cursor-not-allowed': !form.is_ip_based}"
-                                :disabled="!form.is_ip_based"
-                                v-model="form.ip"
-                                required
-                                autocomplete="off"
-                                placeholder="193.107.235.96"
-                            />
-                            <InputError class="mt-2" :message="form.errors.ip"/>
-                            <InputError v-for="(value, key) in Object.keys(form.errors).filter(key => key.startsWith('ip')).
-                            reduce((filtered, key) => {
-                                  filtered[key] = form.errors[key];
-                                  return filtered;
-                                  }, {})" :message="value"/>
-                        </div>
+
 
                         <div class="mt-2">
                             <InputLabel for="email" :value="__('Organization Email')"/>
@@ -310,61 +252,7 @@ onMounted(() => {
                             />
                             <InputError class="mt-2" :message="form.errors.late_threshold_minutes"/>
                         </div>
-                        <div class="mt-2">
-                            <InputLabel for="weekend_off_days" :value="__('Weekend Off Days')"/>
-                            <ul class="ul-checkbox mt-1" dir="ltr">
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="saturday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="saturday" class="li-checkbox-input" checked>
-                                        <label for="saturday-checkbox" class="li-checkbox-label">{{__('Saturday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="sunday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="sunday" class="li-checkbox-input">
-                                        <label for="sunday-checkbox" class="li-checkbox-label">{{__('Sunday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="monday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="monday" class="li-checkbox-input">
-                                        <label for="monday-checkbox" class="li-checkbox-label">{{__('Monday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="tuesday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="tuesday" class="li-checkbox-input">
-                                        <label for="tuesday-checkbox" class="li-checkbox-label">{{__('Tuesday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="wednesday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="wednesday" class="li-checkbox-input">
-                                        <label for="wednesday-checkbox" class="li-checkbox-label">{{__('Wednesday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="flex items-center pl-3">
-                                        <input id="thursday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="thursday" class="li-checkbox-input">
-                                        <label for="thursday-checkbox" class="li-checkbox-label">{{__('Thursday')}}</label>
-                                    </div>
-                                </li>
-                                <li class="w-full dark:border-gray-600">
-                                    <div class="flex items-center pl-3">
-                                        <input id="friday-checkbox" type="checkbox" v-model="form.weekend_off_days"
-                                               value="friday" class="li-checkbox-input">
-                                        <label for="friday-checkbox" class="li-checkbox-label">{{__('Friday')}}</label>
-                                    </div>
-                                </li>
-                            </ul>
-                            <InputError class="mt-2" :message="form.errors.weekend_off_days"/>
-                        </div>
+
                         <div class="flex items-center justify-end mt-4">
                             <PrimaryButton class="ltr:ml-4 rtl:mr-4" :class="{ 'opacity-25': form.processing }"
                                            :disabled="form.processing">

@@ -22,9 +22,9 @@ class PositionController extends Controller
     {
         return Inertia::render('Position/Positions', [
             'positions' => Position::when($request->term, function ($query, $term) {
-                $query->where('id', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('name', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('description', 'ILIKE', '%' . $term . '%');
+                $query->where('id', 'LIKE', '%' . $term . '%')
+                    ->orWhere('name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('description', 'LIKE', '%' . $term . '%');
             })
                 ->select(['id', 'name', 'description'])
                 ->withCount('employees')
@@ -56,11 +56,11 @@ class PositionController extends Controller
     {
         $position = Position::withCount("employees")->findOrFail($id);
         $employees = $position->employees()->where(function ($query) use ($request) {
-            $query->where('employees.normalized_name', 'ILIKE', '%' . normalizeArabic($request->term) . '%')
-                ->orWhere('employees.email', 'ILIKE', '%' . $request->term . '%')
-                ->orWhere('employees.id', 'ILIKE', '%' . $request->term . '%')
-                ->orWhere('employees.phone', 'ILIKE', '%' . $request->term . '%')
-                ->orWhere('employees.national_id', 'ILIKE', '%' . $request->term . '%');
+            $query->where('employees.normalized_name', 'LIKE', '%' . normalizeArabic($request->term) . '%')
+                ->orWhere('employees.email', 'LIKE', '%' . $request->term . '%')
+                ->orWhere('employees.id', 'LIKE', '%' . $request->term . '%')
+                ->orWhere('employees.phone', 'LIKE', '%' . $request->term . '%')
+                ->orWhere('employees.national_id', 'LIKE', '%' . $request->term . '%');
         })
             ->orderBy('employees.id')
             ->paginate(config('constants.data.pagination_count'), ['employees.id', 'employees.name', 'employees.phone', 'employees.email', 'employees.national_id']);

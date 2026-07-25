@@ -24,9 +24,9 @@ class DeviceController extends Controller
     {
         return Inertia::render('Devices/Index', [
             'devices' => Device::when($request->term, function ($query, $term) {
-                $query->where('name', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('serial_number', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('ip_address', 'ILIKE', '%' . $term . '%');
+                $query->where('name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('serial_number', 'LIKE', '%' . $term . '%')
+                    ->orWhere('ip_address', 'LIKE', '%' . $term . '%');
             })
                 ->select(['id', 'name', 'serial_number', 'ip_address'])
                 ->orderBy('id')

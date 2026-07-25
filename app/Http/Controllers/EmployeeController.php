@@ -42,12 +42,13 @@ class EmployeeController extends Controller
 
         return Inertia::render('Employee/Employees', [
             'employees' => Employee::when($request->term, function ($query, $term) {
-                $query->where('normalized_name', 'ILIKE', '%' . normalizeArabic($term) . '%')
-                    ->orWhere('email', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('id', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('phone', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('national_id', 'ILIKE', '%' . $term . '%');
-            })->orderBy($request->sort ?? 'id', $sortDir)->select(['id', 'name', 'email', 'phone', 'national_id'])
+                $query->where('normalized_name', 'LIKE', '%' . normalizeArabic($term) . '%')
+                    ->orWhere('email', 'LIKE', '%' . $term . '%')
+                    ->orWhere('id', 'LIKE', '%' . $term . '%')
+                    ->orWhere('device_employee_id', 'LIKE', '%' . $term . '%')
+                    ->orWhere('phone', 'LIKE', '%' . $term . '%')
+                    ->orWhere('national_id', 'LIKE', '%' . $term . '%');
+            })->orderBy($request->sort ?? 'id', $sortDir)->select(['id', 'name', 'email', 'phone', 'national_id', 'device_employee_id'])
                 ->paginate(config('constants.data.pagination_count')),
         ]);
     }
@@ -65,11 +66,11 @@ class EmployeeController extends Controller
 
         return Inertia::render('Employee/ArchievedEmployees', [
             'employees' => ArchivedEmployee::when($request->term, function ($query, $term) {
-                $query->where('name', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('email', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('id', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('phone', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('national_id', 'ILIKE', '%' . $term . '%');
+                $query->where('name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('email', 'LIKE', '%' . $term . '%')
+                    ->orWhere('id', 'LIKE', '%' . $term . '%')
+                    ->orWhere('phone', 'LIKE', '%' . $term . '%')
+                    ->orWhere('national_id', 'LIKE', '%' . $term . '%');
             })->orderBy($request->sort ?? 'released_on', $sortDir)
                 ->select(['id', 'name', 'email', 'phone', 'national_id', 'hired_on', 'released_on'])
                 ->paginate(config('constants.data.pagination_count')),
@@ -172,11 +173,11 @@ class EmployeeController extends Controller
         return Inertia::render('Employee/EmployeeFind', [
             'employees' => Employee::when($request->term, function ($query, $term) {
                 $query
-                    ->where('name', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('id', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('email', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('phone', 'ILIKE', '%' . $term . '%')
-                    ->orWhere('national_id', 'ILIKE', '%' . $term . '%');
+                    ->where('name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('id', 'LIKE', '%' . $term . '%')
+                    ->orWhere('email', 'LIKE', '%' . $term . '%')
+                    ->orWhere('phone', 'LIKE', '%' . $term . '%')
+                    ->orWhere('national_id', 'LIKE', '%' . $term . '%');
             })->get(),
         ]);
     }

@@ -116,14 +116,33 @@ class AttendanceServices
                 }
             }
 
+            $signIn = !empty($res['sign_in_time'][$i]) && is_array($res['sign_in_time'][$i])
+                ? Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'] ?? 0)->format('H:i:s')
+                : null;
+
+            $signOff = !empty($res['sign_off_time'][$i]) && is_array($res['sign_off_time'][$i])
+                ? Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'] ?? 0)->format('H:i:s')
+                : null;
+
+            // If no status and no times provided and no existing attendance, skip creating empty record
+            if (empty($status) && is_null($signIn) && is_null($signOff)) {
+                $empAtt = Employee::find($empId)->attendances()->where('date', $res['date'])->get();
+                if (count($empAtt) === 0) {
+                    continue;
+                }
+                $status = 'on_time';
+            } elseif (empty($status)) {
+                $status = 'on_time';
+            }
+
             // Logic for updating needs to happen here
             $empAtt = Employee::find($empId)->attendances()->where('date', $res['date'])->get();
             // If there is an attendance record for the employee on the date, update it
             if (count($empAtt) > 0) {
                 $empAtt[0]->update([
                     'status' => $status,
-                    'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
-                    'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
+                    'sign_in_time' => $signIn,
+                    'sign_off_time' => $signOff,
                     'notes' => $res['notes'][$i],
                 ]);
                 // In case there are more than 1 attendance records for the employee on the date, delete them
@@ -138,8 +157,8 @@ class AttendanceServices
                 'date' => $res['date'],
                 'employee_id' => $empId,
                 'status' => $status,
-                'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
-                'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
+                'sign_in_time' => $signIn,
+                'sign_off_time' => $signOff,
                 'notes' => $res['notes'][$i],
             ]);
         }

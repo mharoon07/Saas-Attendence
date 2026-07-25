@@ -18,7 +18,7 @@ class LoanController extends Controller
         }
 
         $loans = $loansQuery->paginate(config('constants.data.pagination_count'));
-        $employees = Employee::select('id', 'name')->get();
+        $employees = Employee::select('id', 'name', 'device_employee_id')->get();
 
         return Inertia::render('Loans/Loans', [
             'loans' => $loans,

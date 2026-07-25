@@ -27,7 +27,7 @@ class DepartmentController extends Controller
     {
         return Inertia::render('Department/Departments', [
             'departments' => Department::when($request->term, function ($query, $term) {
-                $query->where('name', 'ILIKE', '%' . $term . '%');
+                $query->where('name', 'LIKE', '%' . $term . '%');
             })
                 ->select(['id', 'name'])
                 ->withCount('employees')
@@ -63,11 +63,11 @@ class DepartmentController extends Controller
         $department = Department::withCount("employees")->findOrFail($id);
         $employees = $department->employees()
             ->where(function ($query) use ($request) {
-                $query->where('employees.normalized_name', 'ILIKE', '%' . normalizeArabic($request->term) . '%')
-                    ->orWhere('employees.email', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.id', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.phone', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.national_id', 'ILIKE', '%' . $request->term . '%');
+                $query->where('employees.normalized_name', 'LIKE', '%' . normalizeArabic($request->term) . '%')
+                    ->orWhere('employees.email', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.id', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.phone', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.national_id', 'LIKE', '%' . $request->term . '%');
             })
             ->orderBy('employees.id')
             ->paginate(config('constants.data.pagination_count'),

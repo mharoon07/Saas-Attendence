@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockyDepartment extends Model
 {
+    use SoftDeletes;
+
     /**
      * The connection name for the model.
      *

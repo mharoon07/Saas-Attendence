@@ -65,11 +65,15 @@ const storeDeviceAndWait = async () => {
     Swal.fire({
         title: __('Waiting For Device Confirmation'),
         html: `
-            <div class="text-left text-slate-700">
-                <p>Enter the server address on the physical device, then press <strong>Confirm (OK)</strong>.</p>
-                <p class="mt-3">The app will continue automatically when the device contacts the server.</p>
+            <div class="text-left" style="color: #111827 !important;">
+                <p style="color: #111827 !important;">Enter the server address on the physical device, then press <strong style="color: #000000 !important;">Confirm (OK)</strong>.</p>
+                <p class="mt-3" style="color: #111827 !important;">The app will continue automatically when the device contacts the server.</p>
             </div>
         `,
+        customClass: {
+            title: '!text-gray-900',
+            htmlContainer: '!text-gray-900',
+        },
         allowOutsideClick: false,
         allowEscapeKey: false,
         showConfirmButton: false,
@@ -96,6 +100,8 @@ const storeDeviceAndWait = async () => {
             icon: 'success',
             confirmButtonText: __('Go to Devices'),
             customClass: {
+                title: '!text-gray-900',
+                htmlContainer: '!text-gray-900',
                 confirmButton: 'text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-300 font-medium rounded-full text-sm px-5 py-2.5 text-center mb-2',
             },
             buttonsStyling: false,
@@ -117,6 +123,10 @@ const storeDeviceAndWait = async () => {
                 text: __('The device was saved, but it has not contacted the server yet. Check the server address on the physical device and press Confirm (OK).'),
                 icon: 'warning',
                 confirmButtonText: __('OK'),
+                customClass: {
+                    title: '!text-gray-900',
+                    htmlContainer: '!text-gray-900',
+                },
             });
             return;
         }
@@ -131,15 +141,15 @@ const submit = () => {
     Swal.fire({
         title: __('Physical Device Setup'),
         html: `
-            <div class="text-left">
-                <p class="mb-3">Before adding this device, configure the physical device:</p>
-                <ol class="list-decimal pl-5 space-y-2">
-                    <li>Go to <strong>Main Menu</strong>.</li>
-                    <li>Open the <strong>COMM.</strong> page.</li>
-                    <li>Open <strong>Cloud Server Setting</strong>.</li>
-                    <li>Set <strong>Server Mode</strong> to <strong>ADMS</strong>.</li>
-                    <li>Set <strong>Enable Domain Name</strong> to <strong>Active</strong>.</li>
-                    <li>Set <strong>Server Address</strong> to:<br><code class="select-all">peru-spider-275736.hostingersite.com</code></li>
+            <div class="text-left" style="color: #111827 !important;">
+                <p class="mb-3" style="color: #111827 !important;">Before adding this device, configure the physical device:</p>
+                <ol class="list-decimal pl-5 space-y-2" style="color: #111827 !important;">
+                    <li style="color: #111827 !important;">Go to <strong style="color: #000000 !important;">Main Menu</strong>.</li>
+                    <li style="color: #111827 !important;">Open the <strong style="color: #000000 !important;">COMM.</strong> page.</li>
+                    <li style="color: #111827 !important;">Open <strong style="color: #000000 !important;">Cloud Server Setting</strong>.</li>
+                    <li style="color: #111827 !important;">Set <strong style="color: #000000 !important;">Server Mode</strong> to <strong style="color: #000000 !important;">ADMS</strong>.</li>
+                    <li style="color: #111827 !important;">Set <strong style="color: #000000 !important;">Enable Domain Name</strong> to <strong style="color: #000000 !important;">Active</strong>.</li>
+                    <li style="color: #111827 !important;">Set <strong style="color: #000000 !important;">Server Address</strong> to:<br><code class="select-all bg-gray-100 px-2 py-0.5 rounded" style="color: #111827 !important;">peru-spider-275736.hostingersite.com</code></li>
                 </ol>
             </div>
         `,
@@ -149,7 +159,9 @@ const submit = () => {
         cancelButtonText: __('Cancel'),
         reverseButtons: true,
         customClass: {
-            popup: 'text-slate-900',
+            title: '!text-gray-900',
+            htmlContainer: '!text-gray-900',
+            popup: '!text-gray-900',
             confirmButton: 'mx-4 text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-300 font-medium rounded-full text-sm px-5 py-2.5 text-center mb-2',
             cancelButton: 'text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full text-sm px-5 py-2.5 text-center mb-2'
         },

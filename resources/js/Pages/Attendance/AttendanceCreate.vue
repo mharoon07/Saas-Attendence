@@ -20,8 +20,12 @@ const props = defineProps({
     employees: Object,
     attendances: Object,
     dateParam: String,
+    shiftParam: [String, Number],
+    shifts: Array,
     attendable: Boolean,
 });
+
+const selectedShift = ref(props.shiftParam || '');
 
 const full_attendance_exists = computed(() => {
     return props.attendances !== null && Array.isArray(props.attendances) && props.attendances.length === props.employees.length;
@@ -52,11 +56,21 @@ const submit = () => {
     });
 };
 
+function getShiftTime(employee, isEnd = false) {
+    const activeShift = employee.employee_shifts?.find(s => !s.end_date)?.shift || employee.employee_shifts?.[0]?.shift;
+    const timeStr = isEnd ? activeShift?.end_time : activeShift?.start_time;
+    if (timeStr) {
+        const [h, m, s] = timeStr.split(':').map(Number);
+        return { hours: h, minutes: m, seconds: s || 0 };
+    }
+    return isEnd ? { hours: 17, minutes: 0, seconds: 0 } : { hours: 9, minutes: 0, seconds: 0 };
+}
+
 function fillForm() {
     form.employee_id = Array.from({length: props.employees.length}, (_, index) => props.employees[index].id);
-    form.status = Array(props.employees.length).fill("on_time");
-    form.sign_in_time = Array(props.employees.length).fill({hours: 9, minutes: 0, seconds: 0});
-    form.sign_off_time = Array(props.employees.length).fill({hours: 17, minutes: 0, seconds: 0});
+    form.status = Array(props.employees.length).fill("");
+    form.sign_in_time = Array(props.employees.length).fill(null);
+    form.sign_off_time = Array(props.employees.length).fill(null);
     form.notes = Array(props.employees.length).fill(null);
     form.is_manually_filled = Array(props.employees.length).fill(false);
 }
@@ -118,12 +132,13 @@ onMounted(() => {
     }
 });
 
-// No Need for debounce here
 const search = (() => {
-    router.visit(route('attendances.create', {term: form.date.toISOString().split('T')[0]}),
-        {preserveState: false, preserveScroll: true})
+    const term = typeof form.date === 'string' ? form.date : form.date.toISOString().split('T')[0];
+    router.visit(route('attendances.create', {term: term, shift_id: selectedShift.value}),
+        {preserveState: false, preserveScroll: true});
 });
 watch(() => form.date, search);
+watch(selectedShift, search);
 
 </script>
 
@@ -141,21 +156,32 @@ watch(() => form.date, search);
                         {{ __('Note: This page overwrites employees manually registered attendance') }}.
                     </InputLabel>
                     <form @submit.prevent="submit" class="pt-4">
-                        <div>
-                            <InputLabel for="date" :value="__('Select Day')"/>
-                            <VueDatePicker
-                                id="date"
-                                v-model="form.date"
-                                class="py-1 block w-full"
-                                :class="{'border border-red-500': form.errors.date}"
-                                placeholder="Select Date..."
-                                :enable-time-picker="false"
-                                :min-date="new Date(new Date().getFullYear(), new Date().getMonth(), 1)"
-                                :max-date="new Date()"
-                                :dark="inject('isDark').value"
-                                required
-                            ></VueDatePicker>
-                            <InputError class="mt-2" :message="form.errors.date"/>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <InputLabel for="date" :value="__('Select Day')"/>
+                                <VueDatePicker
+                                    id="date"
+                                    v-model="form.date"
+                                    class="py-1 block w-full"
+                                    :class="{'border border-red-500': form.errors.date}"
+                                    placeholder="Select Date..."
+                                    :enable-time-picker="false"
+                                    :min-date="new Date(new Date().getFullYear(), new Date().getMonth(), 1)"
+                                    :max-date="new Date()"
+                                    :dark="inject('isDark').value"
+                                    required
+                                ></VueDatePicker>
+                                <InputError class="mt-2" :message="form.errors.date"/>
+                            </div>
+                            <div>
+                                <InputLabel for="shift_id" :value="__('Filter by Shift')"/>
+                                <select id="shift_id" v-model="selectedShift" class="fancy-selector mt-1 block w-full">
+                                    <option value="">{{ __('All Shifts') }}</option>
+                                    <option v-for="shift in shifts" :key="shift.id" :value="shift.id">
+                                        {{ shift.name }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
                         <Notice v-if="!attendable" type="success" :bold="__('Off Day!')"
                                 :text="__('This day is off (Weekend or a Holiday). No attendance for this day') + '. 🎉'"
@@ -217,7 +243,8 @@ watch(() => form.date, search);
                                                 :disabled="!attendable"
                                                 :class="{ 'opacity-75 cursor-not-allowed': !attendable }"
                                         >
-                                            <option value="on_time" selected>{{ attendance_types['on_time'] }}</option>
+                                            <option value="" disabled>{{ __('Select Status...') }}</option>
+                                            <option value="on_time">{{ attendance_types['on_time'] }}</option>
                                             <option value="late">{{ attendance_types['late'] }}</option>
                                             <option value="missed">{{ attendance_types['missed'] }}</option>
                                             <option value="leave">{{ attendance_types['leave'] }}</option>
@@ -231,7 +258,6 @@ watch(() => form.date, search);
                                             :placeholder="__('Select Time...')"
                                             time-picker
                                             :is-24="false"
-                                            required
                                             :dark="inject('isDark').value"
                                             :disabled="!attendable"
                                             :class="{ 'opacity-75 cursor-not-allowed': !attendable }"
@@ -244,7 +270,6 @@ watch(() => form.date, search);
                                             :placeholder="__('Select Time...')"
                                             time-picker
                                             :is-24="false"
-                                            required
                                             :dark="inject('isDark').value"
                                             :disabled="!attendable"
                                             :class="{ 'opacity-75 cursor-not-allowed': !attendable }"

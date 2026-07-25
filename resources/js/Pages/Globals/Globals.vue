@@ -59,13 +59,7 @@ onBeforeMount(() => {
                                 <DD>{{ globals.timezone }}</DD>
                             </DescriptionListItem>
 
-                            <DescriptionListItem>
-                                <DT>{{__('Organization IP Address')}}</DT>
-                                <DD>{{
-                                        (globals.is_ip_based ? __('[:status]', {status: (__('Enabled'))}) + ' ' : __('[:status]', {status: (__('Disabled'))} ) + ' ' )
-                                        + (globals.ip != null ? JSON.parse(globals.ip).join(', ') : '')
-                                    }}</DD>
-                            </DescriptionListItem>
+
 
                             <DescriptionListItem>
                                 <DT>{{__('Email')}}</DT>
@@ -82,10 +76,7 @@ onBeforeMount(() => {
                                 <DD>{{ globals.absence_limit + ' ' + __('Days') }}</DD>
                             </DescriptionListItem>
 
-                            <DescriptionListItem>
-                                <DT>{{__('Weekend Off Days')}}</DT>
-                                <DD>{{ JSON.parse(globals.weekend_off_days).map(day => day.trim().replace(/^\w/, c => c.toUpperCase())).join(', ') }}</DD>
-                            </DescriptionListItem>
+
 
                             <DescriptionListItem>
                                 <DT>{{__('Payroll Day')}}</DT>

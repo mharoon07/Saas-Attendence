@@ -230,17 +230,11 @@ Class ValidationServices extends Controller {
             'absence_limit' => ['required', 'numeric', 'min:0', 'max:365'],
             'late_threshold_minutes' => ['required', 'integer', 'min:0', 'max:1440'],
             'payroll_day' => ['required', 'integer', 'min:1', 'max:31'],
-            'weekend_off_days' => ['nullable', 'array', 'max:7'],
-            'weekend_off_days.*' => ['nullable', 'string', 'in:saturday,sunday,monday,tuesday,wednesday,thursday,friday'],
+            'weekend_off_days' => ['nullable', 'array'],
             'income_tax' => ['required', 'numeric', 'min:0', 'max:100'],
-            'is_ip_based' => ['required', 'boolean'],
-
-            // Conditional validation. If is_ip_based is true, then ip is required and must be an IP address, nullable otherwise.
-            // Laravel Already has 'ip' validation rule, but it does not support wildcards. So, I have created a custom rule for that.
-            'ip' => $request->get('is_ip_based', false) ?  ['required' , 'array'] : ['nullable'],
-            'ip.*' => $request->get('is_ip_based', false) ?  ['required' , new CustomIPValidator()] : ['nullable'],
+            'is_ip_based' => ['nullable', 'boolean'],
+            'ip' => ['nullable'],
         ], $this->validationMessages);
-
     }
     public function validateRequestCreationDetails($request)
     {
@@ -259,17 +253,11 @@ Class ValidationServices extends Controller {
             'employee_id' => 'required|array',
             'employee_id.*' => 'required|integer',
             'status' => 'required|array',
-            'status.*' => 'required|in:on_time,late,missed,leave,absent',
+            'status.*' => 'nullable|in:on_time,late,missed,leave,absent',
             'sign_in_time' => 'required|array',
-            'sign_in_time.*' => 'required|array|size:3',
-            'sign_in_time.*.hours' => 'required|integer',
-            'sign_in_time.*.minutes' => 'required|integer',
-            'sign_in_time.*.seconds' => 'nullable|integer',
+            'sign_in_time.*' => 'nullable',
             'sign_off_time' => 'required|array',
-            'sign_off_time.*' => 'required|array|size:3',
-            'sign_off_time.*.hours' => 'required|integer',
-            'sign_off_time.*.minutes' => 'required|integer',
-            'sign_off_time.*.seconds' => 'required|integer',
+            'sign_off_time.*' => 'nullable',
             'notes' => 'required|array',
             'notes.*' => 'nullable',
         ];

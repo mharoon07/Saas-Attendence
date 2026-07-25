@@ -58,7 +58,7 @@ class CashTransactionController extends Controller
             $currentBalance = $totalCashIn - $totalCashOut;
         }
 
-        $employees = Employee::select('id', 'name')->get();
+        $employees = Employee::select('id', 'name', 'device_employee_id')->get();
 
         return Inertia::render('CashMaintenance/CashTransactions', [
             'cashTransactions' => $transactions,

@@ -74,10 +74,12 @@ class AttendanceController extends Controller
      */
     public function create(Request $request)
     {
+        $request->validate([
+            'term' => 'nullable|date_format:Y-m-d',
+            'shift_id' => 'nullable|integer',
+        ]);
+
         if ($request->term) {
-            $request->validate([
-                'term' => 'required|date_format:Y-m-d',
-            ]);
             $date = Carbon::createFromFormat('Y-m-d', urldecode($request->term))->startOfDay();
             if ($date->isAfter(Carbon::today())) {
                 return response()->json(['message' => 'Date cannot be in the future. Go back and choose a date before today.']);
@@ -93,11 +95,26 @@ class AttendanceController extends Controller
         $attendanceList = Attendance::with('employee:employees.id,name')->where('date', $date)->orderBy('id')->get();
         $attendable = !$this->commonServices->isDayOff($date);
 
+        $employeesQuery = Employee::with(['employeeShifts' => function ($query) {
+            $query->whereNull('end_date')->with('shift');
+        }])->where('hired_on', '<=', $date);
+
+        if ($request->filled('shift_id')) {
+            $employeesQuery->whereHas('employeeShifts', function ($q) use ($request) {
+                $q->where('shift_id', $request->shift_id)->whereNull('end_date');
+            });
+        }
+
+        $employees = $employeesQuery->orderBy('id')->select(['id', 'name'])->get();
+        $shifts = \App\Models\Shift::get();
+
         return Inertia::render('Attendance/AttendanceCreate', [
             "dateParam" => $request->term ?? Carbon::today()->toDateString(),
-            "employees" => Employee::select(['id', 'name'])->where('hired_on', '<=', $date)->orderBy('id')->get(),
+            "shiftParam" => $request->shift_id ?? '',
+            "employees" => $employees,
             "attendances" => $attendanceList,
             "attendable" => $attendable,
+            "shifts" => $shifts,
         ]);
     }
 

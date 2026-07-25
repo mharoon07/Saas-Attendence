@@ -18,7 +18,7 @@ class AdvancePaymentController extends Controller
         }
 
         $payments = $paymentsQuery->paginate(config('constants.data.pagination_count'));
-        $employees = Employee::select('id', 'name')->get();
+        $employees = Employee::select('id', 'name', 'device_employee_id')->get();
 
         return Inertia::render('AdvancePayments/AdvancePayments', [
             'advancePayments' => $payments,

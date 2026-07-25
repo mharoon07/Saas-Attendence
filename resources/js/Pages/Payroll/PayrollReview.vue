@@ -246,10 +246,7 @@ const destroy = () => {
                 <Card>
                     <h1 class="card-header">{{ __('Attendance Data') }}</h1>
                     <DescriptionList class="!pb-0">
-                        <DescriptionListItem colored>
-                            <DT>{{ __('Attendable Days') }}</DT>
-                            <DD>{{ payroll.regular_working_days + ' ' + __('Day')}}</DD>
-                        </DescriptionListItem>
+
 
                         <DescriptionListItem colored>
                             <DT>{{ __('Leave Days') }}</DT>

@@ -11,7 +11,7 @@ import '@vuepic/vue-datepicker/dist/main.css'
 import InputError from "@/Components/InputError.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
-import {inject, ref, watch} from "vue";
+import {computed, inject, ref, watch} from "vue";
 import Card from "@/Components/Card.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
@@ -26,6 +26,17 @@ const props = defineProps({
 });
 
 const showAddModal = ref(false);
+const employeeSearch = ref('');
+
+const filteredEmployees = computed(() => {
+    if (!employeeSearch.value) return props.employees;
+    const s = employeeSearch.value.toLowerCase();
+    return props.employees.filter(emp =>
+        emp.name.toLowerCase().includes(s) ||
+        String(emp.id).includes(s) ||
+        (emp.device_employee_id && String(emp.device_employee_id).includes(s))
+    );
+});
 
 const addForm = useForm({
     employee_id: '',
@@ -43,6 +54,7 @@ const addCashTransaction = () => {
         onSuccess: () => {
             showAddModal.value = false;
             addForm.reset();
+            employeeSearch.value = '';
         },
     });
 };
@@ -183,14 +195,20 @@ watch(filterForm, debounce((value) => {
                 <div class="mt-6 space-y-4">
                     <div>
                         <InputLabel for="employee_id" :value="__('Employee')" />
+                        <TextInput
+                            type="text"
+                            v-model="employeeSearch"
+                            :placeholder="__('Type to search employee by name or ID...')"
+                            class="mt-1 mb-2 block w-full text-sm"
+                        />
                         <select
                             id="employee_id"
                             v-model="addForm.employee_id"
-                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full"
                         >
                             <option value="" disabled>{{ __('Select Employee') }}</option>
-                            <option v-for="emp in employees" :key="emp.id" :value="emp.id">
-                                {{ emp.name }}
+                            <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.id">
+                                {{ emp.name }} (ID: {{ emp.device_employee_id ?? emp.id }})
                             </option>
                         </select>
                         <InputError class="mt-2" :message="addForm.errors.employee_id" />
