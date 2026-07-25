@@ -99,6 +99,35 @@ class CashTransactionController extends Controller
         return redirect()->back();
     }
 
+    public function update(Request $request, string $id)
+    {
+        if (!isAdmin()) abort(403);
+
+        $tx = CashTransaction::findOrFail($id);
+
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'transaction_type' => 'required|in:cash_in,cash_out',
+            'amount' => 'required|numeric|min:0.01',
+            'date' => 'required|date',
+            'description' => 'nullable|string|max:1000',
+            'reference' => 'nullable|string|max:255',
+            'status' => 'required|in:pending,approved,rejected,completed',
+        ]);
+
+        $tx->update([
+            'employee_id' => $request->employee_id,
+            'transaction_type' => $request->transaction_type,
+            'amount' => $request->amount,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
+            'description' => $request->description,
+            'reference' => $request->reference,
+            'status' => $request->status,
+        ]);
+
+        return redirect()->back();
+    }
+
     public function destroy(string $id)
     {
         if (!isAdmin()) abort(403);

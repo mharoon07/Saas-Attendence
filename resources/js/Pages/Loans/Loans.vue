@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {Head} from '@inertiajs/vue3';
+import {Head, router} from '@inertiajs/vue3';
 import Table from "@/Components/Table/Table.vue";
 import TableHead from "@/Components/Table/TableHead.vue";
 import TableBody from "@/Components/Table/TableBody.vue";
@@ -25,8 +25,18 @@ const props = defineProps({
 });
 
 const showAddModal = ref(false);
+const showEditModal = ref(false);
 
 const addForm = useForm({
+    employee_id: '',
+    loan_amount: '',
+    deduction_percentage: '',
+    date: '',
+    status: 'active',
+});
+
+const editForm = useForm({
+    id: null,
     employee_id: '',
     loan_amount: '',
     deduction_percentage: '',
@@ -42,6 +52,34 @@ const addLoan = () => {
             addForm.reset();
         },
     });
+};
+
+const openEditModal = (loan) => {
+    editForm.id = loan.id;
+    editForm.employee_id = loan.employee_id;
+    editForm.loan_amount = loan.total_amount;
+    editForm.deduction_percentage = loan.deduction_percentage;
+    editForm.date = loan.date;
+    editForm.status = loan.status;
+    showEditModal.value = true;
+};
+
+const updateLoan = () => {
+    editForm.put(route('loans.update', editForm.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditModal.value = false;
+            editForm.reset();
+        },
+    });
+};
+
+const deleteLoan = (loanId) => {
+    if (confirm('Are you sure you want to delete this loan record?')) {
+        router.delete(route('loans.destroy', loanId), {
+            preserveScroll: true,
+        });
+    }
 };
 </script>
 
@@ -78,8 +116,9 @@ const addLoan = () => {
                                 <TableBody>{{loan.paid_amount}}</TableBody>
                                 <TableBody>{{loan.remaining_balance}}</TableBody>
                                 <TableBody>{{loan.status}}</TableBody>
-                                <td class="px-6 py-4">
-                                    <a href="#" class="text-purple-600 hover:underline mr-2">{{__('Edit')}}</a>
+                                <td class="px-6 py-4 flex items-center gap-2">
+                                    <button @click="openEditModal(loan)" class="text-purple-600 hover:underline font-semibold mr-2">{{__('Edit')}}</button>
+                                    <button @click="deleteLoan(loan.id)" class="text-red-600 hover:underline font-semibold">{{__('Delete')}}</button>
                                 </td>
                             </TableRow>
                         </template>
@@ -88,6 +127,7 @@ const addLoan = () => {
             </div>
         </div>
 
+        <!-- Add Loan Modal -->
         <Modal :show="showAddModal" @close="showAddModal = false">
             <div class="p-6 dark:bg-gray-800">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -170,6 +210,94 @@ const addLoan = () => {
                         @click="addLoan"
                     >
                         {{ __('Save') }}
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
+
+        <!-- Edit Loan Modal -->
+        <Modal :show="showEditModal" @close="showEditModal = false">
+            <div class="p-6 dark:bg-gray-800">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {{ __('Edit Employee Loan') }}
+                </h2>     
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <InputLabel for="edit_employee_id" :value="__('Employee')" />
+                        <SearchableSelect
+                            v-model="editForm.employee_id"
+                            :options="employees"
+                            :placeholder="__('Search or select employee...')"
+                            class="mt-1"
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.employee_id" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_loan_amount" :value="__('Loan Amount')" />
+                        <TextInput
+                            id="edit_loan_amount"
+                            type="number"
+                            v-model="editForm.loan_amount"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.loan_amount" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_deduction_percentage" :value="__('Salary Deduction Percentage (%)')" />
+                        <TextInput
+                            id="edit_deduction_percentage"
+                            type="number"
+                            v-model="editForm.deduction_percentage"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.deduction_percentage" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_date" :value="__('Date')" />
+                        <VueDatePicker
+                            id="edit_date"
+                            v-model="editForm.date"
+                            class="py-1 block w-full"
+                            :enable-time-picker="false"
+                            model-type="yyyy-MM-dd"
+                            :dark="inject('isDark').value"
+                            teleport="body"
+                            required
+                        ></VueDatePicker>
+                        <InputError class="mt-2" :message="editForm.errors.date" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_status" :value="__('Status')" />
+                        <select
+                            id="edit_status"
+                            v-model="editForm.status"
+                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                        >
+                            <option value="active">{{ __('Active') }}</option>
+                            <option value="completed">{{ __('Completed') }}</option>
+                        </select>
+                        <InputError class="mt-2" :message="editForm.errors.status" />
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="showEditModal = false">
+                        {{ __('Cancel') }}
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': editForm.processing }"
+                        :disabled="editForm.processing"
+                        @click="updateLoan"
+                    >
+                        {{ __('Update') }}
                     </PrimaryButton>
                 </div>
             </div>

@@ -55,7 +55,30 @@ class LoanController extends Controller
         if (!isAdmin()) abort(403);
 
         $loan = Loan::findOrFail($id);
-        // Add specific validation if needed
+
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'loan_amount' => 'required|numeric|min:0',
+            'deduction_percentage' => 'required|numeric|min:0|max:100',
+            'date' => 'required|date',
+            'status' => 'required|in:active,completed',
+        ]);
+
+        $paidAmount = (float)$loan->paid_amount;
+        $totalAmount = (float)$request->loan_amount;
+        $remainingBalance = max(0, $totalAmount - $paidAmount);
+        $status = ($remainingBalance <= 0) ? 'completed' : $request->status;
+
+        $loan->update([
+            'employee_id' => $request->employee_id,
+            'total_amount' => $totalAmount,
+            'deduction_percentage' => $request->deduction_percentage,
+            'remaining_balance' => $remainingBalance,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
+            'status' => $status,
+        ]);
+
+        return redirect()->back();
     }
 
     public function destroy(string $id)

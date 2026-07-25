@@ -27,8 +27,20 @@ const props = defineProps({
 });
 
 const showAddModal = ref(false);
+const showEditModal = ref(false);
 
 const addForm = useForm({
+    employee_id: '',
+    transaction_type: 'cash_in',
+    amount: '',
+    date: '',
+    description: '',
+    reference: '',
+    status: 'pending',
+});
+
+const editForm = useForm({
+    id: null,
     employee_id: '',
     transaction_type: 'cash_in',
     amount: '',
@@ -46,6 +58,36 @@ const addCashTransaction = () => {
             addForm.reset();
         },
     });
+};
+
+const openEditModal = (tx) => {
+    editForm.id = tx.id;
+    editForm.employee_id = tx.employee_id;
+    editForm.transaction_type = tx.transaction_type;
+    editForm.amount = tx.amount;
+    editForm.date = tx.date;
+    editForm.description = tx.description || '';
+    editForm.reference = tx.reference || '';
+    editForm.status = tx.status;
+    showEditModal.value = true;
+};
+
+const updateCashTransaction = () => {
+    editForm.put(route('cash-transactions.update', editForm.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditModal.value = false;
+            editForm.reset();
+        },
+    });
+};
+
+const deleteTransaction = (txId) => {
+    if (confirm('Are you sure you want to delete this cash transaction record?')) {
+        router.delete(route('cash-transactions.destroy', txId), {
+            preserveScroll: true,
+        });
+    }
 };
 
 const filterForm = ref({
@@ -144,6 +186,7 @@ watch(filterForm, debounce((value) => {
                             <TableHead>{{__('Description')}}</TableHead>
                             <TableHead>{{__('Reference')}}</TableHead>
                             <TableHead>{{__('Status')}}</TableHead>
+                            <TableHead>{{__('Action')}}</TableHead>
                         </template>
                          <template #Body>
                             <TableRow v-for="transaction in cashTransactions.data" :key="transaction.id">
@@ -169,6 +212,10 @@ watch(filterForm, debounce((value) => {
                                         {{ transaction.status }}
                                     </span>
                                 </TableBody>
+                                <td class="px-6 py-4 flex items-center gap-2">
+                                    <button @click="openEditModal(transaction)" class="text-purple-600 hover:underline font-semibold mr-2">{{__('Edit')}}</button>
+                                    <button @click="deleteTransaction(transaction.id)" class="text-red-600 hover:underline font-semibold">{{__('Delete')}}</button>
+                                </td>
                             </TableRow>
                         </template>
                     </Table>
@@ -176,6 +223,7 @@ watch(filterForm, debounce((value) => {
             </div>
         </div>
 
+        <!-- Add Modal -->
         <Modal :show="showAddModal" @close="showAddModal = false">
             <div class="p-6 dark:bg-gray-800">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -288,6 +336,124 @@ watch(filterForm, debounce((value) => {
                         @click="addCashTransaction"
                     >
                         {{ __('Save') }}
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
+
+        <!-- Edit Modal -->
+        <Modal :show="showEditModal" @close="showEditModal = false">
+            <div class="p-6 dark:bg-gray-800">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {{ __('Edit Cash Transaction') }}
+                </h2>     
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <InputLabel for="edit_employee_id" :value="__('Employee')" />
+                        <SearchableSelect
+                            v-model="editForm.employee_id"
+                            :options="employees"
+                            :placeholder="__('Search or select employee...')"
+                            class="mt-1"
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.employee_id" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel for="edit_transaction_type" :value="__('Transaction Type')" />
+                            <select
+                                id="edit_transaction_type"
+                                v-model="editForm.transaction_type"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                            >
+                                <option value="cash_in">{{ __('Cash In') }}</option>
+                                <option value="cash_out">{{ __('Cash Out') }}</option>
+                            </select>
+                            <InputError class="mt-2" :message="editForm.errors.transaction_type" />
+                        </div>
+                        <div>
+                            <InputLabel for="edit_amount" :value="__('Amount')" />
+                            <TextInput
+                                id="edit_amount"
+                                type="number"
+                                step="0.01"
+                                v-model="editForm.amount"
+                                class="mt-1 block w-full"
+                                required
+                            />
+                            <InputError class="mt-2" :message="editForm.errors.amount" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_date" :value="__('Date')" />
+                        <VueDatePicker
+                            id="edit_date"
+                            v-model="editForm.date"
+                            class="py-1 block w-full"
+                            :enable-time-picker="false"
+                            model-type="yyyy-MM-dd"
+                            :dark="inject('isDark').value"
+                            format="yyyy-MM-dd"
+                            value-format="yyyy-MM-dd"
+                            teleport="body"
+                            required
+                        ></VueDatePicker>
+                        <InputError class="mt-2" :message="editForm.errors.date" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_description" :value="__('Description / Note')" />
+                        <TextInput
+                            id="edit_description"
+                            type="text"
+                            v-model="editForm.description"
+                            class="mt-1 block w-full"
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.description" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel for="edit_reference" :value="__('Reference')" />
+                            <TextInput
+                                id="edit_reference"
+                                type="text"
+                                v-model="editForm.reference"
+                                class="mt-1 block w-full"
+                            />
+                            <InputError class="mt-2" :message="editForm.errors.reference" />
+                        </div>
+                        <div>
+                            <InputLabel for="edit_status" :value="__('Status')" />
+                            <select
+                                id="edit_status"
+                                v-model="editForm.status"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                            >
+                                <option value="pending">{{ __('Pending') }}</option>
+                                <option value="approved">{{ __('Approved') }}</option>
+                                <option value="rejected">{{ __('Rejected') }}</option>
+                                <option value="completed">{{ __('Completed') }}</option>
+                            </select>
+                            <InputError class="mt-2" :message="editForm.errors.status" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="showEditModal = false">
+                        {{ __('Cancel') }}
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': editForm.processing }"
+                        :disabled="editForm.processing"
+                        @click="updateCashTransaction"
+                    >
+                        {{ __('Update') }}
                     </PrimaryButton>
                 </div>
             </div>

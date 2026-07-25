@@ -53,7 +53,28 @@ class AdvancePaymentController extends Controller
         if (!isAdmin()) abort(403);
 
         $payment = AdvancePayment::findOrFail($id);
-        // Optional update method
+
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'advance_amount' => 'required|numeric|min:0',
+            'date' => 'required|date',
+            'status' => 'required|in:pending,approved,rejected,completed',
+        ]);
+
+        $deductedAmount = (float)$payment->deducted_amount;
+        $advanceAmount = (float)$request->advance_amount;
+        $remainingAmount = max(0, $advanceAmount - $deductedAmount);
+        $status = ($remainingAmount <= 0) ? 'completed' : $request->status;
+
+        $payment->update([
+            'employee_id' => $request->employee_id,
+            'advance_amount' => $advanceAmount,
+            'remaining_amount' => $remainingAmount,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
+            'status' => $status,
+        ]);
+
+        return redirect()->back();
     }
 
     public function destroy(string $id)

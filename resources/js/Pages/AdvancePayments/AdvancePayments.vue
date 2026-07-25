@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {Head} from '@inertiajs/vue3';
+import {Head, router} from '@inertiajs/vue3';
 import Table from "@/Components/Table/Table.vue";
 import TableHead from "@/Components/Table/TableHead.vue";
 import TableBody from "@/Components/Table/TableBody.vue";
@@ -25,8 +25,17 @@ const props = defineProps({
 });
 
 const showAddModal = ref(false);
+const showEditModal = ref(false);
 
 const addForm = useForm({
+    employee_id: '',
+    advance_amount: '',
+    date: '',
+    status: 'pending',
+});
+
+const editForm = useForm({
+    id: null,
     employee_id: '',
     advance_amount: '',
     date: '',
@@ -41,6 +50,33 @@ const addAdvancePayment = () => {
             addForm.reset();
         },
     });
+};
+
+const openEditModal = (payment) => {
+    editForm.id = payment.id;
+    editForm.employee_id = payment.employee_id;
+    editForm.advance_amount = payment.advance_amount;
+    editForm.date = payment.date;
+    editForm.status = payment.status;
+    showEditModal.value = true;
+};
+
+const updateAdvancePayment = () => {
+    editForm.put(route('advance-payments.update', editForm.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditModal.value = false;
+            editForm.reset();
+        },
+    });
+};
+
+const deleteAdvancePayment = (paymentId) => {
+    if (confirm('Are you sure you want to delete this advance payment record?')) {
+        router.delete(route('advance-payments.destroy', paymentId), {
+            preserveScroll: true,
+        });
+    }
 };
 </script>
 
@@ -77,8 +113,9 @@ const addAdvancePayment = () => {
                                 <TableBody>{{payment.remaining_amount}}</TableBody>
                                 <TableBody>{{payment.date}}</TableBody>
                                 <TableBody>{{payment.status}}</TableBody>
-                                <td class="px-6 py-4">
-                                    <a href="#" class="text-purple-600 hover:underline mr-2">{{__('Edit')}}</a>
+                                <td class="px-6 py-4 flex items-center gap-2">
+                                    <button @click="openEditModal(payment)" class="text-purple-600 hover:underline font-semibold mr-2">{{__('Edit')}}</button>
+                                    <button @click="deleteAdvancePayment(payment.id)" class="text-red-600 hover:underline font-semibold">{{__('Delete')}}</button>
                                 </td>
                             </TableRow>
                         </template>
@@ -87,6 +124,7 @@ const addAdvancePayment = () => {
             </div>
         </div>
 
+        <!-- Add Advance Payment Modal -->
         <Modal :show="showAddModal" @close="showAddModal = false">
             <div class="p-6 dark:bg-gray-800">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -141,6 +179,7 @@ const addAdvancePayment = () => {
                             <option value="pending">{{ __('Pending') }}</option>
                             <option value="approved">{{ __('Approved') }}</option>
                             <option value="rejected">{{ __('Rejected') }}</option>
+                            <option value="completed">{{ __('Completed') }}</option>
                         </select>
                         <InputError class="mt-2" :message="addForm.errors.status" />
                     </div>
@@ -158,6 +197,84 @@ const addAdvancePayment = () => {
                         @click="addAdvancePayment"
                     >
                         {{ __('Save') }}
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
+
+        <!-- Edit Advance Payment Modal -->
+        <Modal :show="showEditModal" @close="showEditModal = false">
+            <div class="p-6 dark:bg-gray-800">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {{ __('Edit Advance Payment') }}
+                </h2>     
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <InputLabel for="edit_employee_id" :value="__('Employee')" />
+                        <SearchableSelect
+                            v-model="editForm.employee_id"
+                            :options="employees"
+                            :placeholder="__('Search or select employee...')"
+                            class="mt-1"
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.employee_id" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_advance_amount" :value="__('Advance Amount')" />
+                        <TextInput
+                            id="edit_advance_amount"
+                            type="number"
+                            v-model="editForm.advance_amount"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.advance_amount" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_date" :value="__('Date')" />
+                        <VueDatePicker
+                            id="edit_date"
+                            v-model="editForm.date"
+                            class="py-1 block w-full"
+                            :enable-time-picker="false"
+                            model-type="yyyy-MM-dd"
+                            :dark="inject('isDark').value"
+                            teleport="body"
+                            required
+                        ></VueDatePicker>
+                        <InputError class="mt-2" :message="editForm.errors.date" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_status" :value="__('Status')" />
+                        <select
+                            id="edit_status"
+                            v-model="editForm.status"
+                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                        >
+                            <option value="pending">{{ __('Pending') }}</option>
+                            <option value="approved">{{ __('Approved') }}</option>
+                            <option value="rejected">{{ __('Rejected') }}</option>
+                            <option value="completed">{{ __('Completed') }}</option>
+                        </select>
+                        <InputError class="mt-2" :message="editForm.errors.status" />
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="showEditModal = false">
+                        {{ __('Cancel') }}
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': editForm.processing }"
+                        :disabled="editForm.processing"
+                        @click="updateAdvancePayment"
+                    >
+                        {{ __('Update') }}
                     </PrimaryButton>
                 </div>
             </div>
