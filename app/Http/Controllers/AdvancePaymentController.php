@@ -41,7 +41,7 @@ class AdvancePaymentController extends Controller
             'employee_id' => $request->employee_id,
             'advance_amount' => $request->advance_amount,
             'remaining_amount' => $request->advance_amount,
-            'date' => $request->date,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
             'status' => $request->status,
         ]);
 

@@ -90,7 +90,7 @@ class CashTransactionController extends Controller
             'employee_id' => $request->employee_id,
             'transaction_type' => $request->transaction_type,
             'amount' => $request->amount,
-            'date' => $request->date,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
             'description' => $request->description,
             'reference' => $request->reference,
             'status' => $request->status,

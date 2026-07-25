@@ -102,36 +102,23 @@ class DashboardController extends Controller
                 ->whereNotIn('status', ['missed', 'absent'])
                 ->count();
 
-            $lateCount = 0;
-            try {
-                $lateCount = \App\Models\Attendance::whereYear('date', $year)
-                    ->whereMonth('date', $month)
-                    ->where('status', 'late')
-                    ->count();
-            } catch (\Exception $e) {
-                try {
-                    $lateCount = \App\Models\Attendance::whereYear('date', $year)
-                        ->whereMonth('date', $month)
-                        ->where('is_late', true)
-                        ->count();
-                } catch (\Exception $ex) {
-                    $lateCount = 3;
-                }
-            }
+            $lateCount = \App\Models\Attendance::whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->where('status', 'late')
+                ->count();
 
-            $attendanceRate = 96;
+            $attendanceRate = 0;
             if ($empCount > 0) {
                 $expectedLogs = $empCount * 22;
                 $attendanceRate = round(($attendedDays / $expectedLogs) * 100);
                 if ($attendanceRate > 100) $attendanceRate = 100;
-                if ($attendanceRate < 10) $attendanceRate = 95;
             }
 
             $stats = [
                 'empCount' => $empCount,
                 'deptCount' => $deptCount,
                 'attendanceRate' => $attendanceRate,
-                'lateCount' => $lateCount > 0 ? $lateCount : 2,
+                'lateCount' => $lateCount,
                 'expectedHours' => $empCount * 22 * 8,
                 'actualHours' => $attendedDays * 8,
                 'employeeName' => 'All Employees',
@@ -151,35 +138,56 @@ class DashboardController extends Controller
             ->whereMonth('date', $month)
             ->where('status', 'late');
 
+        $loansQuery = \App\Models\Loan::query()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        $cashTxQuery = \App\Models\CashTransaction::query()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        $advQuery = \App\Models\AdvancePayment::query()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
         if ($employeeId !== 'all') {
             $payrollQuery->where('employee_id', $employeeId);
             $attendanceQuery->where('employee_id', $employeeId);
             $lateQuery->where('employee_id', $employeeId);
+            $loansQuery->where('employee_id', $employeeId);
+            $cashTxQuery->where('employee_id', $employeeId);
+            $advQuery->where('employee_id', $employeeId);
         }
 
         $payrollCount = (clone $payrollQuery)->count();
         $attendanceCount = (clone $attendanceQuery)->count();
         $lateCountForReports = (clone $lateQuery)->count();
+        $loansCount = (clone $loansQuery)->count();
+        $cashTxCount = (clone $cashTxQuery)->count();
+        $advCount = (clone $advQuery)->count();
 
         $payrollLatest = (clone $payrollQuery)->latest('updated_at')->value('updated_at');
         $attendanceLatest = (clone $attendanceQuery)->latest('updated_at')->value('updated_at');
         $lateLatest = (clone $lateQuery)->latest('updated_at')->value('updated_at');
+        $loansLatest = (clone $loansQuery)->latest('updated_at')->value('updated_at');
+        $cashTxLatest = (clone $cashTxQuery)->latest('updated_at')->value('updated_at');
+        $advLatest = (clone $advQuery)->latest('updated_at')->value('updated_at');
 
         $generatedReports = [
             [
                 'id' => 'attendance',
                 'name' => 'Monthly Attendance Summary',
                 'format' => 'CSV/PDF',
-                'created_at' => $attendanceLatest ? Carbon::parse($attendanceLatest)->toDateString() : null,
+                'created_at' => $attendanceLatest ? Carbon::parse($attendanceLatest)->format('Y-m-d H:i') : null,
                 'has_data' => $attendanceCount > 0,
                 'records' => $attendanceCount,
                 'download_url' => route('reports.attendance', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
             ],
             [
                 'id' => 'payroll',
-                'name' => 'Payroll Breakdown',
+                'name' => 'Payroll Breakdown Report',
                 'format' => 'CSV/PDF',
-                'created_at' => $payrollLatest ? Carbon::parse($payrollLatest)->toDateString() : null,
+                'created_at' => $payrollLatest ? Carbon::parse($payrollLatest)->format('Y-m-d H:i') : null,
                 'has_data' => $payrollCount > 0,
                 'records' => $payrollCount,
                 'download_url' => route('reports.payroll', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
@@ -188,10 +196,37 @@ class DashboardController extends Controller
                 'id' => 'late',
                 'name' => 'Late Entry / Early Exit Details',
                 'format' => 'CSV/PDF',
-                'created_at' => $lateLatest ? Carbon::parse($lateLatest)->toDateString() : null,
+                'created_at' => $lateLatest ? Carbon::parse($lateLatest)->format('Y-m-d H:i') : null,
                 'has_data' => $lateCountForReports > 0,
                 'records' => $lateCountForReports,
                 'download_url' => route('reports.late', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+            [
+                'id' => 'loans',
+                'name' => 'Employee Loans Report',
+                'format' => 'CSV',
+                'created_at' => $loansLatest ? Carbon::parse($loansLatest)->format('Y-m-d H:i') : null,
+                'has_data' => $loansCount > 0,
+                'records' => $loansCount,
+                'download_url' => route('reports.loans', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+            [
+                'id' => 'cash-transactions',
+                'name' => 'Cash Transactions Report',
+                'format' => 'CSV',
+                'created_at' => $cashTxLatest ? Carbon::parse($cashTxLatest)->format('Y-m-d H:i') : null,
+                'has_data' => $cashTxCount > 0,
+                'records' => $cashTxCount,
+                'download_url' => route('reports.cash_transactions', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
+            ],
+            [
+                'id' => 'advance-payments',
+                'name' => 'Advance Payments Report',
+                'format' => 'CSV',
+                'created_at' => $advLatest ? Carbon::parse($advLatest)->format('Y-m-d H:i') : null,
+                'has_data' => $advCount > 0,
+                'records' => $advCount,
+                'download_url' => route('reports.advance_payments', array_merge(request()->only(['month', 'year', 'employee_id']), ['format' => 'csv'])),
             ],
         ];
 

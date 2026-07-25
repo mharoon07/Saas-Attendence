@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import {Head, router} from '@inertiajs/vue3';
 import Card from "@/Components/Card.vue";
+import SearchableSelect from "@/Components/SearchableSelect.vue";
 import {__} from "@/Composables/useTranslations.js";
 import {ref, computed} from "vue";
 import Swal from "sweetalert2";
@@ -16,6 +17,11 @@ const props = defineProps({
 const selectedMonth = ref(props.filters?.month ?? new Date().getMonth() + 1);
 const selectedYear = ref(props.filters?.year ?? new Date().getFullYear());
 const selectedEmployee = ref(props.filters?.employee_id ?? 'all');
+
+const employeeOptions = computed(() => [
+    { id: 'all', name: __('All Employees') },
+    ...(props.employees ?? [])
+]);
 
 const months = [
     { value: 1, label: __('January') },
@@ -82,6 +88,9 @@ const generateCustomReport = () => {
         payroll: 'payroll',
         attendance: 'attendance',
         late: 'late',
+        loans: 'loans',
+        'cash-transactions': 'cash-transactions',
+        'advance-payments': 'advance-payments',
     };
 
     const selectedRoute = routeMap[selectedReportType.value];
@@ -135,18 +144,16 @@ const downloadReport = (report) => {
                     <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-grow">
                             <!-- Employee Filter (Admin only) -->
-                            <div v-if="$page.props.auth.user.roles.includes('admin')" class="flex-grow min-w-[220px]">
+                            <div v-if="$page.props.auth.user.roles.includes('admin')" class="flex-grow min-w-[250px]">
                                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
                                     {{ __('Filter by Employee') }}
                                 </label>
-                                <select 
-                                    v-model="selectedEmployee" 
-                                    @change="applyFilters" 
-                                    class="w-full rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-sm"
-                                >
-                                    <option value="all">{{ __('All Employees') }}</option>
-                                    <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{ emp.name }}</option>
-                                </select>
+                                <SearchableSelect
+                                    v-model="selectedEmployee"
+                                    :options="employeeOptions"
+                                    :placeholder="__('Search or select employee...')"
+                                    @update:modelValue="applyFilters"
+                                />
                             </div>
                             
                             <!-- Month Filter -->
@@ -234,10 +241,13 @@ const downloadReport = (report) => {
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {{ __('Report Type') }}
                                 </label>
-                                <select v-model="selectedReportType" class="w-full rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500">
-                                    <option :value="'attendance'">{{ __('Monthly Attendance Summary') }}</option>
-                                    <option :value="'payroll'">{{ __('Payroll Breakdown') }}</option>
-                                    <option :value="'late'">{{ __('Late Entry / Early Exit Details') }}</option>
+                                <select v-model="selectedReportType" class="w-full rounded border-gray-300 dark:bg-gray-800 dark:border-gray-700 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-sm">
+                                    <option value="attendance">{{ __('Monthly Attendance Summary') }}</option>
+                                    <option value="payroll">{{ __('Payroll Breakdown Report') }}</option>
+                                    <option value="late">{{ __('Late Entry / Early Exit Details') }}</option>
+                                    <option value="loans">{{ __('Employee Loans Report') }}</option>
+                                    <option value="cash-transactions">{{ __('Cash Transactions Report') }}</option>
+                                    <option value="advance-payments">{{ __('Advance Payments Report') }}</option>
                                 </select>
                             </div>
 
@@ -282,27 +292,36 @@ const downloadReport = (report) => {
                                 <thead>
                                     <tr class="border-b border-gray-200 dark:border-gray-700 text-gray-400 text-xs font-semibold uppercase">
                                         <th class="py-3 px-2">{{ __('Report Name') }}</th>
+                                        <th class="py-3 px-2 text-center">{{ __('Records') }}</th>
                                         <th class="py-3 px-2 text-center">{{ __('Format') }}</th>
-                                        <th class="py-3 px-2 text-center">{{ __('Created Date') }}</th>
+                                        <th class="py-3 px-2 text-center">{{ __('Last Updated Date') }}</th>
                                         <th class="py-3 px-2 text-center">{{ __('Action') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800 text-sm text-gray-800 dark:text-gray-300">
                                     <tr v-for="report in reportRows" :key="report.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                                         <td class="py-4 px-2 font-medium text-gray-900 dark:text-white">{{ report.name }}</td>
+                                        <td class="py-4 px-2 text-center font-semibold">
+                                            <span :class="report.records > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'">
+                                                {{ report.records }} {{ __('Records') }}
+                                            </span>
+                                        </td>
                                         <td class="py-4 px-2 text-center">
                                             <span class="px-2 py-1 text-xs font-semibold rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
                                                 {{ report.format }}
                                             </span>
                                         </td>
-                                        <td class="py-4 px-2 text-center">{{ report.created_at ?? __('No records yet') }}</td>
+                                        <td class="py-4 px-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                                            {{ report.created_at ?? __('No activity yet') }}
+                                        </td>
                                         <td class="py-4 px-2 text-center">
                                             <button 
-                                                    @click="downloadReport(report)"
-                                                    :disabled="!report.has_data"
-                                                    class="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                                @click="downloadReport(report)"
+                                                :disabled="!report.has_data"
+                                                class="px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1 transition"
+                                                :class="report.has_data ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-sm' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                                 </svg>
                                                 {{ report.has_data ? __('Download') : __('No Data') }}
@@ -310,7 +329,7 @@ const downloadReport = (report) => {
                                         </td>
                                     </tr>
                                     <tr v-if="reportRows.length === 0">
-                                        <td colspan="4" class="py-6 text-center text-gray-500 dark:text-gray-400">
+                                        <td colspan="5" class="py-6 text-center text-gray-500 dark:text-gray-400">
                                             {{ __('No reports available for current filters.') }}
                                         </td>
                                     </tr>

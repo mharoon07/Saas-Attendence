@@ -11,11 +11,12 @@ import '@vuepic/vue-datepicker/dist/main.css'
 import InputError from "@/Components/InputError.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
-import {computed, inject, ref} from "vue";
+import {inject, ref} from "vue";
 import Card from "@/Components/Card.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import SearchableSelect from "@/Components/SearchableSelect.vue";
 import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -24,17 +25,6 @@ const props = defineProps({
 });
 
 const showAddModal = ref(false);
-const employeeSearch = ref('');
-
-const filteredEmployees = computed(() => {
-    if (!employeeSearch.value) return props.employees;
-    const s = employeeSearch.value.toLowerCase();
-    return props.employees.filter(emp =>
-        emp.name.toLowerCase().includes(s) ||
-        String(emp.id).includes(s) ||
-        (emp.device_employee_id && String(emp.device_employee_id).includes(s))
-    );
-});
 
 const addForm = useForm({
     employee_id: '',
@@ -50,7 +40,6 @@ const addLoan = () => {
         onSuccess: () => {
             showAddModal.value = false;
             addForm.reset();
-            employeeSearch.value = '';
         },
     });
 };
@@ -107,22 +96,12 @@ const addLoan = () => {
                 <div class="mt-6 space-y-4">
                     <div>
                         <InputLabel for="employee_id" :value="__('Employee')" />
-                        <TextInput
-                            type="text"
-                            v-model="employeeSearch"
-                            :placeholder="__('Type to search employee by name or ID...')"
-                            class="mt-1 mb-2 block w-full text-sm"
-                        />
-                        <select
-                            id="employee_id"
+                        <SearchableSelect
                             v-model="addForm.employee_id"
-                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full"
-                        >
-                            <option value="" disabled>{{ __('Select Employee') }}</option>
-                            <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.id">
-                                {{ emp.name }} (ID: {{ emp.device_employee_id ?? emp.id }})
-                            </option>
-                        </select>
+                            :options="employees"
+                            :placeholder="__('Search or select employee...')"
+                            class="mt-1"
+                        />
                         <InputError class="mt-2" :message="addForm.errors.employee_id" />
                     </div>
 
@@ -157,6 +136,7 @@ const addLoan = () => {
                             v-model="addForm.date"
                             class="py-1 block w-full"
                             :enable-time-picker="false"
+                            model-type="yyyy-MM-dd"
                             :dark="inject('isDark').value"
                             teleport="body"
                             required

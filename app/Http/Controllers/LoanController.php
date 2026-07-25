@@ -43,7 +43,7 @@ class LoanController extends Controller
             'total_amount' => $request->loan_amount,
             'deduction_percentage' => $request->deduction_percentage,
             'remaining_balance' => $request->loan_amount,
-            'date' => $request->date,
+            'date' => \Carbon\Carbon::parse($request->date)->format('Y-m-d'),
             'status' => $request->status,
         ]);
 

@@ -251,4 +251,125 @@ class ReportController extends Controller
             'Content-Type' => 'text/csv',
         ]);
     }
+
+    public function loans(Request $request)
+    {
+        $month = (int)$request->query('month', date('n'));
+        $year = (int)$request->query('year', date('Y'));
+        $employeeId = $request->query('employee_id', 'all');
+
+        $fileName = "loans_report_{$year}_{$month}.csv";
+
+        $callback = function () use ($employeeId, $month, $year) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Loan ID', 'Employee Name', 'Total Amount', 'Deduction %', 'Paid Amount', 'Remaining Balance', 'Date', 'Status']);
+
+            $query = \App\Models\Loan::with('employee')
+                ->whereYear('date', $year)
+                ->whereMonth('date', $month);
+
+            if ($employeeId !== 'all') {
+                $query->where('employee_id', $employeeId);
+            }
+
+            foreach ($query->get() as $loan) {
+                fputcsv($handle, [
+                    $loan->id,
+                    optional($loan->employee)->name,
+                    $loan->total_amount,
+                    $loan->deduction_percentage . '%',
+                    $loan->paid_amount,
+                    $loan->remaining_balance,
+                    $loan->date,
+                    $loan->status,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    public function cashTransactions(Request $request)
+    {
+        $month = (int)$request->query('month', date('n'));
+        $year = (int)$request->query('year', date('Y'));
+        $employeeId = $request->query('employee_id', 'all');
+
+        $fileName = "cash_transactions_report_{$year}_{$month}.csv";
+
+        $callback = function () use ($employeeId, $month, $year) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Transaction ID', 'Employee Name', 'Type', 'Amount', 'Date', 'Description', 'Reference', 'Status']);
+
+            $query = \App\Models\CashTransaction::with('employee')
+                ->whereYear('date', $year)
+                ->whereMonth('date', $month);
+
+            if ($employeeId !== 'all') {
+                $query->where('employee_id', $employeeId);
+            }
+
+            foreach ($query->get() as $tx) {
+                fputcsv($handle, [
+                    $tx->id,
+                    optional($tx->employee)->name,
+                    $tx->transaction_type,
+                    $tx->amount,
+                    $tx->date,
+                    $tx->description,
+                    $tx->reference,
+                    $tx->status,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    public function advancePayments(Request $request)
+    {
+        $month = (int)$request->query('month', date('n'));
+        $year = (int)$request->query('year', date('Y'));
+        $employeeId = $request->query('employee_id', 'all');
+
+        $fileName = "advance_payments_report_{$year}_{$month}.csv";
+
+        $callback = function () use ($employeeId, $month, $year) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Advance ID', 'Employee Name', 'Advance Amount', 'Remaining Amount', 'Date', 'Status']);
+
+            $query = \App\Models\AdvancePayment::with('employee')
+                ->whereYear('date', $year)
+                ->whereMonth('date', $month);
+
+            if ($employeeId !== 'all') {
+                $query->where('employee_id', $employeeId);
+            }
+
+            foreach ($query->get() as $adv) {
+                fputcsv($handle, [
+                    $adv->id,
+                    optional($adv->employee)->name,
+                    $adv->advance_amount,
+                    $adv->remaining_amount,
+                    $adv->date,
+                    $adv->status,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
 }

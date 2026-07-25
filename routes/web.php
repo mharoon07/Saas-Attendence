@@ -71,6 +71,9 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('reports/payroll', [\App\Http\Controllers\ReportController::class, 'payroll'])->name('reports.payroll');
     Route::get('reports/attendance', [\App\Http\Controllers\ReportController::class, 'attendance'])->name('reports.attendance');
     Route::get('reports/late', [\App\Http\Controllers\ReportController::class, 'late'])->name('reports.late');
+    Route::get('reports/loans', [\App\Http\Controllers\ReportController::class, 'loans'])->name('reports.loans');
+    Route::get('reports/cash-transactions', [\App\Http\Controllers\ReportController::class, 'cashTransactions'])->name('reports.cash_transactions');
+    Route::get('reports/advance-payments', [\App\Http\Controllers\ReportController::class, 'advancePayments'])->name('reports.advance_payments');
 
     Route::get('my-profile', [\App\Http\Controllers\EmployeeController::class, 'showMyProfile'])->name('my-profile');
     Route::resource('requests', \App\Http\Controllers\RequestController::class)->only(['index', 'show', 'create', 'store']);
