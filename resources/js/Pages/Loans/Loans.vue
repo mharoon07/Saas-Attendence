@@ -158,7 +158,7 @@ const deleteLoan = (loanId) => {
                     </div>
 
                     <div>
-                        <InputLabel for="deduction_percentage" :value="__('Salary Deduction Percentage (%)')" />
+                        <InputLabel for="deduction_percentage" :value="__('Loan Deduction Percentage (%)')" />
                         <TextInput
                             id="deduction_percentage"
                             type="number"
@@ -246,7 +246,7 @@ const deleteLoan = (loanId) => {
                     </div>
 
                     <div>
-                        <InputLabel for="edit_deduction_percentage" :value="__('Salary Deduction Percentage (%)')" />
+                        <InputLabel for="edit_deduction_percentage" :value="__('Loan Deduction Percentage (%)')" />
                         <TextInput
                             id="edit_deduction_percentage"
                             type="number"

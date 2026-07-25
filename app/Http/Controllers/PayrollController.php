@@ -159,7 +159,7 @@ class PayrollController extends Controller
         $loanDeduction = 0;
         foreach ($activeLoans as $loan) {
             $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
-            $deduction = $payroll->base * ($pct / 100);
+            $deduction = (float)$loan->total_amount * ($pct / 100);
             if ($deduction <= 0) {
                 $deduction = (float)$loan->remaining_balance;
             }
