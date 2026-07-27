@@ -254,23 +254,47 @@ class ReportController extends Controller
 
     public function loans(Request $request)
     {
+        $format = $request->query('format', 'csv');
         $month = (int)$request->query('month', date('n'));
         $year = (int)$request->query('year', date('Y'));
         $employeeId = $request->query('employee_id', 'all');
 
+        $query = \App\Models\Loan::with('employee')
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        if ($employeeId !== 'all') {
+            $query->where('employee_id', $employeeId);
+        }
+
+        if (strtolower($format) === 'pdf') {
+            $rows = $query->get();
+            try {
+                $html = view('reports.pdf_loans', compact('rows', 'month', 'year'))->render();
+                if (class_exists(\Dompdf\Dompdf::class)) {
+                    $dompdf = new \Dompdf\Dompdf();
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4', 'landscape');
+                    $dompdf->render();
+                    return response($dompdf->output(), 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => "attachment; filename=loans_report_{$year}_{$month}.pdf",
+                    ]);
+                }
+                return response($html, 200, [
+                    'Content-Type' => 'text/html',
+                    'Content-Disposition' => "attachment; filename=loans_report_{$year}_{$month}.html",
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Failed to generate PDF report: ' . $e->getMessage()], 500);
+            }
+        }
+
         $fileName = "loans_report_{$year}_{$month}.csv";
 
-        $callback = function () use ($employeeId, $month, $year) {
+        $callback = function () use ($query) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['Loan ID', 'Employee Name', 'Total Amount', 'Deduction %', 'Paid Amount', 'Remaining Balance', 'Date', 'Status']);
-
-            $query = \App\Models\Loan::with('employee')
-                ->whereYear('date', $year)
-                ->whereMonth('date', $month);
-
-            if ($employeeId !== 'all') {
-                $query->where('employee_id', $employeeId);
-            }
 
             foreach ($query->get() as $loan) {
                 fputcsv($handle, [
@@ -295,23 +319,47 @@ class ReportController extends Controller
 
     public function cashTransactions(Request $request)
     {
+        $format = $request->query('format', 'csv');
         $month = (int)$request->query('month', date('n'));
         $year = (int)$request->query('year', date('Y'));
         $employeeId = $request->query('employee_id', 'all');
 
+        $query = \App\Models\CashTransaction::with('employee')
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        if ($employeeId !== 'all') {
+            $query->where('employee_id', $employeeId);
+        }
+
+        if (strtolower($format) === 'pdf') {
+            $rows = $query->get();
+            try {
+                $html = view('reports.pdf_cash_transactions', compact('rows', 'month', 'year'))->render();
+                if (class_exists(\Dompdf\Dompdf::class)) {
+                    $dompdf = new \Dompdf\Dompdf();
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4', 'landscape');
+                    $dompdf->render();
+                    return response($dompdf->output(), 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => "attachment; filename=cash_transactions_report_{$year}_{$month}.pdf",
+                    ]);
+                }
+                return response($html, 200, [
+                    'Content-Type' => 'text/html',
+                    'Content-Disposition' => "attachment; filename=cash_transactions_report_{$year}_{$month}.html",
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Failed to generate PDF report: ' . $e->getMessage()], 500);
+            }
+        }
+
         $fileName = "cash_transactions_report_{$year}_{$month}.csv";
 
-        $callback = function () use ($employeeId, $month, $year) {
+        $callback = function () use ($query) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['Transaction ID', 'Employee Name', 'Type', 'Amount', 'Date', 'Description', 'Reference', 'Status']);
-
-            $query = \App\Models\CashTransaction::with('employee')
-                ->whereYear('date', $year)
-                ->whereMonth('date', $month);
-
-            if ($employeeId !== 'all') {
-                $query->where('employee_id', $employeeId);
-            }
 
             foreach ($query->get() as $tx) {
                 fputcsv($handle, [
@@ -336,23 +384,47 @@ class ReportController extends Controller
 
     public function advancePayments(Request $request)
     {
+        $format = $request->query('format', 'csv');
         $month = (int)$request->query('month', date('n'));
         $year = (int)$request->query('year', date('Y'));
         $employeeId = $request->query('employee_id', 'all');
 
+        $query = \App\Models\AdvancePayment::with('employee')
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month);
+
+        if ($employeeId !== 'all') {
+            $query->where('employee_id', $employeeId);
+        }
+
+        if (strtolower($format) === 'pdf') {
+            $rows = $query->get();
+            try {
+                $html = view('reports.pdf_advance_payments', compact('rows', 'month', 'year'))->render();
+                if (class_exists(\Dompdf\Dompdf::class)) {
+                    $dompdf = new \Dompdf\Dompdf();
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4', 'landscape');
+                    $dompdf->render();
+                    return response($dompdf->output(), 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => "attachment; filename=advance_payments_report_{$year}_{$month}.pdf",
+                    ]);
+                }
+                return response($html, 200, [
+                    'Content-Type' => 'text/html',
+                    'Content-Disposition' => "attachment; filename=advance_payments_report_{$year}_{$month}.html",
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Failed to generate PDF report: ' . $e->getMessage()], 500);
+            }
+        }
+
         $fileName = "advance_payments_report_{$year}_{$month}.csv";
 
-        $callback = function () use ($employeeId, $month, $year) {
+        $callback = function () use ($query) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['Advance ID', 'Employee Name', 'Advance Amount', 'Remaining Amount', 'Date', 'Status']);
-
-            $query = \App\Models\AdvancePayment::with('employee')
-                ->whereYear('date', $year)
-                ->whereMonth('date', $month);
-
-            if ($employeeId !== 'all') {
-                $query->where('employee_id', $employeeId);
-            }
 
             foreach ($query->get() as $adv) {
                 fputcsv($handle, [
