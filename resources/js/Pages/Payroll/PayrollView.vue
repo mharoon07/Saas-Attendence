@@ -82,7 +82,7 @@ const destroy = () => {
         confirmButtonText: __('Yes, delete it!')
     }).then((result) => {
         if (result.isConfirmed) {
-            router.delete(route('payrolls.destroy', {id: props.payroll.id}), {
+            router.delete(route('payrolls.destroy', {payroll: props.payroll.id}), {
                 onSuccess: () => {
                     Swal.fire(__('Deleted!'), __('The Payroll has been deleted.'), 'success')
                 }

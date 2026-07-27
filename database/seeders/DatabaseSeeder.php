@@ -143,6 +143,9 @@ class DatabaseSeeder extends Seeder
             'department_id' => 1,
         ]);
 
+        // Seed Pakistani Employees
+        $this->call(PakistaniEmployeeSeeder::class);
+
         // Generate Random Payrolls
         $this->generateRandomPayrolls();
 

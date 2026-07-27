@@ -342,13 +342,8 @@ class PayrollController extends Controller
 
         $payroll = Payroll::findOrFail($id);
 
-        if ($payroll->additions) {
-            $payroll->additions()->delete();
-        }
-        if ($payroll->deductions) {
-            $payroll->deductions()->delete();
-        }
-
+        $payroll->additions()->delete();
+        $payroll->deductions()->delete();
         $payroll->delete();
 
         return redirect()->route('payrolls.index');

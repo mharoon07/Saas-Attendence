@@ -17,6 +17,8 @@ import Card from "@/Components/Card.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import {__} from "@/Composables/useTranslations.js";
+import Swal from "sweetalert2";
 
 const props = defineProps({
     payrolls: Object,
@@ -64,7 +66,8 @@ const destroy = (id) => {
         confirmButtonText: __('Yes, delete it!')
     }).then((result) => {
         if (result.isConfirmed) {
-            router.delete(route('payrolls.destroy', {id}), {
+            router.delete(route('payrolls.destroy', {payroll: id}), {
+                preserveScroll: true,
                 onSuccess: () => {
                     Swal.fire(__('Deleted!'), __('The Payroll has been deleted.'), 'success')
                 }
@@ -200,6 +203,8 @@ const destroy = (id) => {
                             month-picker
                             auto-apply
                             class="mt-1 block w-full"
+                            :dark="inject('isDark').value"
+                            teleport="body"
                         />
                         <InputError class="mt-2" :message="generateForm.errors.month_year" />
                     </div>

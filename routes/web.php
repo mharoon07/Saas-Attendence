@@ -79,7 +79,6 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('my-profile', [\App\Http\Controllers\EmployeeController::class, 'showMyProfile'])->name('my-profile');
     Route::resource('requests', \App\Http\Controllers\RequestController::class)->only(['index', 'show', 'create', 'store']);
-    Route::resource('payrolls', \App\Http\Controllers\PayrollController::class)->only(['index', 'show']);
     Route::resource('loans', \App\Http\Controllers\LoanController::class)->only(['index', 'show']);
     Route::resource('advance-payments', \App\Http\Controllers\AdvancePaymentController::class)->only(['index', 'show']);
     Route::resource('cash-transactions', \App\Http\Controllers\CashTransactionController::class)->only(['index', 'show']);
