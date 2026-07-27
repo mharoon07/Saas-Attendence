@@ -38,7 +38,6 @@ const filter = (() => {
         {preserveState: true, preserveScroll: true})
 });
 watch(date, filter);
-watch(status, filter);
 const showGenerateModal = ref(false);
 const generateForm = useForm({
     month_year: null,
@@ -160,7 +159,7 @@ const destroy = (id) => {
                             <TableRow v-for="payroll in payrolls.data" :key="payroll.id">
                                 <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.id}}</TableBodyHeader>
                                 <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.payroll_month}}/{{payroll.payroll_year}}</TableBodyHeader>
-                                <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})" >{{payroll.employee_name}}</TableBodyHeader>
+                                <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.employee_name}} <span class="text-xs text-purple-600 dark:text-purple-400 font-semibold">(EM-{{payroll.device_employee_id || payroll.emp_id}})</span></TableBodyHeader>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.monthly_salary}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.daily_salary}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.regular_working_days}}</TableBody>
@@ -174,9 +173,9 @@ const destroy = (id) => {
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.net_salary}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.status  ? "Paid" : (payroll.is_reviewed ? "Reviewed" : "Pending Review")}}</TableBody>
                                 <td class="px-6 py-4" v-if="$page.props.auth.user.roles.includes('admin')">
-                                    <a :href="route('payrolls.edit', {id: payroll.id})" class="text-purple-600 hover:underline mr-2">{{__('Edit')}}</a>
-                                    <a :href="route('payrolls.export', {id: payroll.id})" class="text-green-600 hover:underline mr-2">{{__('Download')}}</a>
-                                    <button @click.prevent="destroy(payroll.id)" class="text-red-600 hover:underline">{{__('Delete')}}</button>
+                                     <a :href="route('payrolls.edit', {id: payroll.id})" class="text-purple-600 hover:underline mr-2">{{__('Edit')}}</a>
+                                     <a :href="route('payrolls.pdf', {id: payroll.id, mode: 'download'})" class="text-blue-600 hover:underline font-semibold mr-2">{{__('Download PDF')}}</a>
+                                     <button @click.prevent="destroy(payroll.id)" class="text-red-600 hover:underline">{{__('Delete')}}</button>
                                 </td>
                             </TableRow>
                         </template>
@@ -188,34 +187,32 @@ const destroy = (id) => {
         <Modal :show="showGenerateModal" @close="showGenerateModal = false">
             <div class="p-6 dark:bg-gray-800">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    {{ __('Generate Payroll manually') }}
-                </h2>     
-                <div class="mt-6 space-y-4">
+                    {{ __('Generate Payroll') }}
+                </h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    {{ __('Select a month and year to generate monthly payroll for active employees.') }}
+                </p>
+                <div class="mt-4 space-y-4">
                     <div>
-                        <InputLabel for="month_year" :value="__('Payroll Month')" />
+                        <InputLabel for="month_year" :value="__('Select Month & Year')" />
                         <VueDatePicker
-                            id="month_year"
                             v-model="generateForm.month_year"
-                            class="py-1 block w-full"
-                            :enable-time-picker="false"
-                            :max-date="new Date()"
                             month-picker
-                            :dark="inject('isDark').value"
-                            teleport="body"
-                            required
-                        ></VueDatePicker>
+                            auto-apply
+                            class="mt-1 block w-full"
+                        />
                         <InputError class="mt-2" :message="generateForm.errors.month_year" />
                     </div>
                     <div>
-                        <InputLabel for="employee_id" :value="__('Employee (Optional)')" />
+                        <InputLabel for="employee_id" :value="__('Target Employee (Optional)')" />
                         <select
                             id="employee_id"
                             v-model="generateForm.employee_id"
-                            class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm py-1 block w-full mt-1"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
                         >
-                            <option value="">{{ __('All Employees') }}</option>
+                            <option value="">{{ __('All Active Employees') }}</option>
                             <option v-for="emp in employees" :key="emp.id" :value="emp.id">
-                                {{ emp.name }}
+                                {{ emp.name }} ({{ emp.employee_code || ('EM-' + (emp.device_employee_id || emp.id)) }})
                             </option>
                         </select>
                         <InputError class="mt-2" :message="generateForm.errors.employee_id" />

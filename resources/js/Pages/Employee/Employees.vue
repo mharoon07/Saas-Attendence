@@ -103,7 +103,7 @@ const destroy = (id) => {
                         <!--Iterate Here-->
                         <template #Body>
                             <TableRow v-for="employee in employees.data" :key="employee.id">
-                                <TableBodyHeader :href="route('employees.show', {id: employee.id})">{{employee.device_employee_id ?? employee.id}}</TableBodyHeader>
+                                <TableBodyHeader :href="route('employees.show', {id: employee.id})">{{employee.employee_code || ('EM-' + (employee.device_employee_id || employee.id))}}</TableBodyHeader>
                                 <TableBodyHeader :href="route('employees.show', {id: employee.id})" >{{employee.name}}</TableBodyHeader>
                                 <TableBody :href="route('employees.show', {id: employee.id})">{{employee.email}}</TableBody>
                                 <TableBody :href="route('employees.show', {id: employee.id})">{{employee.phone}}</TableBody>

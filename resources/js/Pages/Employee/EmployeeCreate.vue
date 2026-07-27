@@ -11,7 +11,7 @@ import {useToast} from "vue-toastification";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 import Card from "@/Components/Card.vue";
-import {inject, computed} from "vue";
+import {inject, computed, ref, watch} from "vue";
 import {__} from "@/Composables/useTranslations.js";
 import dayjs from "dayjs";
 
@@ -67,9 +67,54 @@ const removeCustomDeduction = (index) => {
     form.custom_deductions.splice(index, 1);
 };
 
+const salary_type = ref('monthly');
+const hourly_rate_input = ref('');
+
+const selectedShiftDutyHours = computed(() => {
+    if (!form.shift_id) return 8;
+    const found = props.shifts?.find(s => s.id == form.shift_id);
+    return found?.regular_duty_hours || 8;
+});
+
+const onHourlyRateInput = () => {
+    if (salary_type.value === 'hourly') {
+        const rate = parseFloat(hourly_rate_input.value) || 0;
+        const dutyHours = selectedShiftDutyHours.value;
+        form.monthly_salary = (rate * dutyHours * 30).toFixed(2);
+        if (!form.overtime_rate || form.overtime_rate == 0) {
+            form.overtime_rate = rate.toFixed(2);
+        }
+    }
+};
+
+const onMonthlySalaryInput = () => {
+    if (salary_type.value === 'monthly') {
+        const monthly = parseFloat(form.monthly_salary) || 0;
+        const dutyHours = selectedShiftDutyHours.value;
+        const calculatedHourly = (monthly / (30 * dutyHours));
+        hourly_rate_input.value = calculatedHourly ? calculatedHourly.toFixed(2) : '';
+    }
+};
+
 const daily_salary = computed(() => {
-    if (!form.monthly_salary) return 0;
-    return (form.monthly_salary / 30).toFixed(2);
+    if (!form.monthly_salary) return '0.00';
+    return (parseFloat(form.monthly_salary) / 30).toFixed(2);
+});
+
+watch(salary_type, (newType) => {
+    if (newType === 'hourly') {
+        onHourlyRateInput();
+    } else {
+        onMonthlySalaryInput();
+    }
+});
+
+watch(() => form.shift_id, () => {
+    if (salary_type.value === 'hourly') {
+        onHourlyRateInput();
+    } else {
+        onMonthlySalaryInput();
+    }
 });
 
 const positionForm = useForm({
@@ -80,6 +125,7 @@ const shiftForm = useForm({
     name: '',
     start_time: '',
     end_time: '',
+    regular_duty_hours: 8,
     description: '',
 });
 
@@ -552,18 +598,35 @@ const submitShift = () => {
                                                 <InputError class="mt-2" :message="shiftForm.errors.end_time"/>
                                             </div>
                                             <div>
-                                                <InputLabel for="description" :value="__('Description')"/>
-                                                <TextInput
-                                                    id="description"
-                                                    type="text"
-                                                    class="mt-1 block w-full"
-                                                    :class="{'border border-red-500': shiftForm.errors.description}"
-                                                    v-model="shiftForm.description"
-                                                    autocomplete="off"
-                                                    :placeholder="__('Normal day shift, small amount of customers expected during this shift.')"
-                                                />
-                                                <InputError class="mt-2" :message="shiftForm.errors.description"/>
-                                            </div>
+                                                 <InputLabel for="regular_duty_hours" :value="__('Regular Duty Hours')"/>
+                                                 <TextInput
+                                                     id="regular_duty_hours"
+                                                     type="number"
+                                                     class="mt-1 block w-full"
+                                                     :class="{'border border-red-500': shiftForm.errors.regular_duty_hours}"
+                                                     v-model="shiftForm.regular_duty_hours"
+                                                     autocomplete="off"
+                                                     :placeholder="'8 (' + __('default') + ')'"
+                                                     min="0"
+                                                     max="24"
+                                                     step="0.5"
+                                                     required
+                                                 />
+                                                 <InputError class="mt-2" :message="shiftForm.errors.regular_duty_hours"/>
+                                             </div>
+                                             <div>
+                                                 <InputLabel for="description" :value="__('Description')"/>
+                                                 <TextInput
+                                                     id="description"
+                                                     type="text"
+                                                     class="mt-1 block w-full"
+                                                     :class="{'border border-red-500': shiftForm.errors.description}"
+                                                     v-model="shiftForm.description"
+                                                     autocomplete="off"
+                                                     :placeholder="__('Normal day shift, small amount of customers expected during this shift.')"
+                                                 />
+                                                 <InputError class="mt-2" :message="shiftForm.errors.description"/>
+                                             </div>
 
                                             <template #customFooter>
                                                 <button id="submitShiftButton" type="submit"
@@ -598,8 +661,36 @@ const submitShift = () => {
                                 <div></div>
                             </div>
 
+                            <div class="grid grid-cols-2 gap-8 mt-6">
+                                <div class="col-span-2 flex items-center justify-between border-b pb-3 dark:border-gray-700">
+                                    <label class="font-semibold text-gray-900 dark:text-gray-100 text-base">{{ __('Salary Basis Setup') }}</label>
+                                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                                        <button type="button"
+                                                @click="salary_type = 'monthly'; onMonthlySalaryInput()"
+                                                :class="[
+                                                    'px-4 py-1.5 text-sm font-medium rounded-l-lg border transition-colors',
+                                                    salary_type === 'monthly'
+                                                        ? 'bg-purple-700 text-white border-purple-700'
+                                                        : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700'
+                                                ]">
+                                            {{ __('Monthly Basis') }}
+                                        </button>
+                                        <button type="button"
+                                                @click="salary_type = 'hourly'; onHourlyRateInput()"
+                                                :class="[
+                                                    'px-4 py-1.5 text-sm font-medium rounded-r-lg border transition-colors',
+                                                    salary_type === 'hourly'
+                                                        ? 'bg-purple-700 text-white border-purple-700'
+                                                        : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700'
+                                                ]">
+                                            {{ __('Hourly Basis') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-8 mt-4">
-                                <div>
+                                <div v-if="salary_type === 'monthly'">
                                     <InputLabel for="monthly_salary" :value="__('Monthly Salary')" class="mb-1"/>
                                     <div class="grid grid-cols-6">
                                         <select id="currency"
@@ -621,6 +712,7 @@ const submitShift = () => {
                                             class="inline ltr:rounded-l-none rtl:rounded-r-none col-span-4"
                                             :class="{'border border-red-500': form.errors.monthly_salary}"
                                             v-model="form.monthly_salary"
+                                            @input="onMonthlySalaryInput"
                                             required
                                             autocomplete="off"
                                             placeholder="10000"
@@ -629,16 +721,46 @@ const submitShift = () => {
                                     <InputError class="mt-2" :message="form.errors.currency"/>
                                     <InputError class="mt-2" :message="form.errors.monthly_salary"/>
                                 </div>
+                                <div v-else>
+                                    <InputLabel for="hourly_rate" :value="__('Hourly Rate')" class="mb-1"/>
+                                    <div class="grid grid-cols-6">
+                                        <select id="currency"
+                                                class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
+                                                v-model="form.currency">
+                                            <option value="PKR">PKR</option>
+                                            <option value="EGP">EGP</option>
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="GBP">GBP</option>
+                                            <option value="CAD">CAD</option>
+                                            <option value="SAR">SAR</option>
+                                            <option value="AED">AED</option>
+                                            <option value="KWD">KWD</option>
+                                        </select>
+                                        <TextInput
+                                            id="hourly_rate"
+                                            type="number"
+                                            step="0.01"
+                                            class="inline ltr:rounded-l-none rtl:rounded-r-none col-span-4"
+                                            v-model="hourly_rate_input"
+                                            @input="onHourlyRateInput"
+                                            required
+                                            autocomplete="off"
+                                            placeholder="50.00"
+                                        />
+                                    </div>
+                                </div>
                                 <div>
-                                    <InputLabel for="daily_salary" :value="__('Daily Salary (Auto-Calculated)')"/>
+                                    <InputLabel for="daily_salary" :value="salary_type === 'monthly' ? __('Daily Salary (Auto-Calculated)') : __('Calculated Monthly Salary')"/>
                                     <TextInput
                                         id="daily_salary"
                                         type="number"
-                                        class="mt-1 block w-full bg-gray-100"
-                                        :value="daily_salary"
+                                        class="mt-1 block w-full bg-gray-100 dark:bg-gray-700"
+                                        :value="salary_type === 'monthly' ? daily_salary : form.monthly_salary"
                                         readonly
                                         autocomplete="off"
                                     />
+                                    
                                 </div>
                             </div>
 
@@ -662,16 +784,18 @@ const submitShift = () => {
                             </div>
                             <div class="grid grid-cols-2 gap-8 mt-4">
                                 <div>
-                                    <InputLabel for="device_employee_id" :value="__('Device Employee ID (PIN)')"/>
+                                    <InputLabel for="device_employee_id" :value="__('Employee ID')"/>
                                     <TextInput
                                         id="device_employee_id"
-                                        type="text"
+                                        type="number"
+                                        min="1"
                                         class="mt-1 block w-full"
                                         :class="{'border border-red-500': form.errors.device_employee_id}"
                                         v-model="form.device_employee_id"
                                         autocomplete="off"
-                                        :placeholder="__('12')"
+                                        placeholder="1"
                                     />
+                                    <p class="text-xs text-gray-500 mt-1">{{ __('Enter numeric ID only (e.g. 1, 2, 10). Displayed automatically as EM-1, EM-2.') }}</p>
                                     <InputError class="mt-2" :message="form.errors.device_employee_id"/>
                                 </div>
                             </div>

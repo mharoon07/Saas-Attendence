@@ -47,7 +47,8 @@ class PayrollController extends Controller
         $payrolls = Payroll::leftJoin('employees', 'payrolls.employee_id', '=', 'employees.id')
             ->select(
                 'payrolls.id', 'payrolls.due_date', 'payrolls.currency', 'payrolls.total_payable', 
-                'employees.name as employee_name', 'payrolls.status', 'payrolls.is_reviewed',
+                'employees.name as employee_name', 'employees.device_employee_id', 'employees.id as emp_id',
+                'payrolls.status', 'payrolls.is_reviewed',
                 'payrolls.monthly_salary', 'payrolls.daily_salary', 'payrolls.regular_working_days',
                 'payrolls.absent_days', 'payrolls.leave_days', 'payrolls.overtime_hours', 'payrolls.overtime_amount',
                 'payrolls.total_additions', 'payrolls.total_deductions', 'payrolls.gross_salary', 'payrolls.net_salary',
@@ -354,10 +355,33 @@ class PayrollController extends Controller
     }
 
     /**
-     * Export Payroll to CSV.
+     * Download Payroll PDF Pay Slip.
      */
-    public function export(string $id)
+    public function pdf(string $id, Request $request)
     {
+        $payroll = Payroll::with([
+            'employee',
+            'employee.employeeShifts.shift',
+            'employee.employeePositions.position',
+            'additions',
+            'deductions'
+        ])->findOrFail($id);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.salary-slip', compact('payroll'))->setPaper('a4', 'portrait');
+        $fileName = 'PaySlip_' . str_replace(' ', '_', $payroll->employee->name) . '_' . Carbon::parse($payroll->period_start)->format('M_Y') . '.pdf';
+        
+        return $pdf->download($fileName);
+    }
+
+    /**
+     * Export Payroll to CSV or PDF.
+     */
+    public function export(string $id, Request $request)
+    {
+        if ($request->query('format') === 'pdf') {
+            return $this->pdf($id);
+        }
+
         $payroll = Payroll::with('employee')->findOrFail($id);
         
         $fileName = 'Payroll_' . $payroll->employee->name . '_' . $payroll->period_start . '_to_' . $payroll->period_end . '.csv';

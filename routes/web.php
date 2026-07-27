@@ -38,6 +38,8 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::put('payrolls/{id}/updateStatus', [\App\Http\Controllers\PayrollController::class, 'updateStatus'])->name('payrolls.updateStatus');
     Route::put('payrolls/{id}/updateAttendance', [\App\Http\Controllers\PayrollController::class, 'updateAttendance'])->name('payrolls.updateAttendance');
     Route::get('payrolls/{id}/export', [\App\Http\Controllers\PayrollController::class, 'export'])->name('payrolls.export');
+    Route::get('payrolls/{id}/pdf', [\App\Http\Controllers\PayrollController::class, 'pdf'])->name('payrolls.pdf');
+    Route::get('payrolls/{id}/preview', [\App\Http\Controllers\PayrollController::class, 'preview'])->name('payrolls.preview');
     Route::resource('payrolls', \App\Http\Controllers\PayrollController::class);
 
     Route::get('attendance/{date}', [\App\Http\Controllers\AttendanceController::class, 'dayShow'])->name('attendance.show');

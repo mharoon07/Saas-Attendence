@@ -62,11 +62,11 @@ const toggleDark = useToggle(isDark);
                     <OrganizationIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
-                <SidebarListItem :item-name="__('Calendar')" link="calendar.index"
+                <!-- <SidebarListItem :item-name="__('Calendar')" link="calendar.index"
                                  :activeLinks="['calendar.index', 'calendars.index', 'calendars.create',
                  'calendars.show', 'calendars.edit']">
                     <CalendarIcon class="text-gray-500 dark:text-gray-100"/>
-                </SidebarListItem>
+                </SidebarListItem> -->
 
                 <SidebarListItem :item-name="__('Attendance')" link="attendances.index"
                                  :activeLinks="['attendance.dashboard', 'attendance.show', 'attendances.index', 'attendances.create']">
@@ -142,9 +142,9 @@ const toggleDark = useToggle(isDark);
                     <MoneyIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
-                <SidebarListItem :item-name="__('My Calendar')" link="calendar.index" :active-links="['calendar.index']">
+                <!-- <SidebarListItem :item-name="__('My Calendar')" link="calendar.index" :active-links="['calendar.index']">
                     <CalendarIcon class="text-gray-500 dark:text-gray-100"/>
-                </SidebarListItem>
+                </SidebarListItem> -->
 
                 <SidebarListItem :item-name="__('My Attendance')" link="attendance.dashboard"
                                  :active-links="['attendance.dashboard']">
@@ -301,7 +301,7 @@ const toggleDark = useToggle(isDark);
                             <ResponsiveNavLink :href="route('employees.index')">Employees</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('branches.index')">Organization</ResponsiveNavLink>
 
-                            <ResponsiveNavLink :href="route('calendar.index')">Calendar</ResponsiveNavLink>
+                            <!-- <ResponsiveNavLink :href="route('calendar.index')">Calendar</ResponsiveNavLink> -->
                             <ResponsiveNavLink :href="route('attendances.index')">Attendance</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('payrolls.index')">Payrolls</ResponsiveNavLink>
                         </div>

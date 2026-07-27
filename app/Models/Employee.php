@@ -45,6 +45,17 @@ class Employee extends Authenticatable
         'password' => 'hashed',
     ];
 
+    protected $appends = [
+        'employee_code',
+    ];
+
+    public function getEmployeeCodeAttribute(): string
+    {
+        $raw = !empty($this->device_employee_id) ? $this->device_employee_id : $this->id;
+        $num = preg_replace('/[^0-9]/', '', (string)$raw);
+        return 'EM-' . ($num ?: $this->id);
+    }
+
     protected static function boot(): void
     {
         parent::boot();

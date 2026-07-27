@@ -114,30 +114,39 @@ onMounted(() => {
                     <div>
                         <div class="flex justify-between items-center mb-4">
                             <h1 class=" text-2xl">{{ __('Payroll Details') }}</h1>
-                            <div v-if="$page.props.auth.user.roles.includes('admin')" class="flex inline-flex gap-4">
-                                <FlexButton v-if="!payroll.status" :href="route('payrolls.edit', {id: payroll.id})"
-                                            :text="!payroll.is_reviewed ? __('Review Payroll') : __('Review Again')" >
-                                    <ModifyIcon/>
-                                </FlexButton>
-                                <form @submit.prevent="submit">
-                                    <GenericButton v-if="payroll.is_reviewed && !payroll.status"
-                                                   :text="__('Approve Payroll')" @click="form.status = true"
-                                                   :class="{ 'opacity-25': form.processing }"
-                                                   :disabled="form.processing"
-                                    >
-                                        <CheckIcon/>
-                                    </GenericButton>
-                                    <GenericButton v-else-if="payroll.is_reviewed && payroll.status"
-                                                   :text="__('Mark as Pending')" @click="form.status = false"
-                                                   :class="{ 'opacity-25': form.processing }"
-                                                   :disabled="form.processing"
-                                    >
-                                        <XIcon/>
-                                    </GenericButton>
-                                </form>
-                                <button type="button" @click.prevent="destroy" class="text-red-600 hover:text-red-800 ml-4 font-semibold text-sm">
-                                    {{ __('Delete Payroll') }}
-                                </button>
+                            <div class="flex inline-flex gap-2 items-center">
+                                <a :href="route('payrolls.pdf', {id: payroll.id, mode: 'download'})"
+                                   class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow-sm transition-colors">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    {{ __('Download PDF Pay Slip') }}
+                                </a>
+                                <div v-if="$page.props.auth.user.roles.includes('admin')" class="flex inline-flex gap-2 items-center ltr:ml-2 rtl:mr-2">
+                                    <FlexButton v-if="!payroll.status" :href="route('payrolls.edit', {id: payroll.id})"
+                                                :text="!payroll.is_reviewed ? __('Review Payroll') : __('Review Again')" >
+                                        <ModifyIcon/>
+                                    </FlexButton>
+                                    <form @submit.prevent="submit">
+                                        <GenericButton v-if="payroll.is_reviewed && !payroll.status"
+                                                       :text="__('Approve Payroll')" @click="form.status = true"
+                                                       :class="{ 'opacity-25': form.processing }"
+                                                       :disabled="form.processing"
+                                        >
+                                            <CheckIcon/>
+                                        </GenericButton>
+                                        <GenericButton v-else-if="payroll.is_reviewed && payroll.status"
+                                                       :text="__('Mark as Pending')" @click="form.status = false"
+                                                       :class="{ 'opacity-25': form.processing }"
+                                                       :disabled="form.processing"
+                                        >
+                                            <XIcon/>
+                                        </GenericButton>
+                                    </form>
+                                    <button type="button" @click.prevent="destroy" class="text-red-600 hover:text-red-800 ml-2 font-semibold text-sm">
+                                        {{ __('Delete Payroll') }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -162,7 +171,7 @@ onMounted(() => {
                             <DescriptionListItem colored>
                                 <DT>{{__('Issued for Employee')}}</DT>
                                 <Link :href="route('employees.show', {id: payroll.employee.id})">
-                                    <DD>{{ payroll.employee.name }}</DD>
+                                    <DD>{{ payroll.employee.name }} <span class="text-sm text-purple-600 dark:text-purple-400 font-bold">({{ payroll.employee.employee_code || ('EM-' + (payroll.employee.device_employee_id || payroll.employee.id)) }})</span></DD>
                                 </Link>
                             </DescriptionListItem>
                             <DescriptionListItem>
@@ -221,5 +230,6 @@ onMounted(() => {
             </div>
 
         </div>
+
     </AuthenticatedLayout>
 </template>

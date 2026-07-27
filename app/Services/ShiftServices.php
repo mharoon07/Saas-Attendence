@@ -17,7 +17,7 @@ class ShiftServices
             'start_time' => $startTime,
             'end_time' => $endTime,
             'description' => $shift['description'],
-            'regular_duty_hours' => $shift['regular_duty_hours'],
+            'regular_duty_hours' => $shift['regular_duty_hours'] ?? 8.0,
         ]);
         return to_route('shifts.index');
     }

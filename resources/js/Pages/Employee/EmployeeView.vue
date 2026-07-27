@@ -73,7 +73,7 @@ const computedManages = computed(() => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <Card class="!mt-0">
                     <div class="flex justify-between items-center mb-4">
-                        <h1 class="card-header">{{__('Employee View :ifAdmin', {ifAdmin: props.employee.manages.length > 0 ? '(' + __('Manager') + ')' : ''})}} </h1>
+                        <h1 class="card-header">{{__('Employee View :ifAdmin', {ifAdmin: (props.employee.manages && props.employee.manages.length > 0) ? '(' + __('Manager') + ')' : ''})}} </h1>
                         <div class="flex inline-flex gap-4">
                             <FlexButton v-if="$page.props.auth.user.roles.includes('admin')"
                                         :text="__('Modify Employee Data')" :href="route('employees.edit', {id: employee.id})">
@@ -93,8 +93,8 @@ const computedManages = computed(() => {
                             <DD>{{ employee.name }}</DD>
                         </DescriptionListItem>
                         <DescriptionListItem colored>
-                            <DT>{{__('ID')}}</DT>
-                            <DD>{{ employee.id }}</DD>
+                            <DT>{{__('Employee ID')}}</DT>
+                            <DD>{{ employee.employee_code || ('EM-' + (employee.device_employee_id || employee.id)) }}</DD>
                         </DescriptionListItem>
                         <DescriptionListItem>
                             <DT>{{__('Phone')}}</DT>
@@ -154,22 +154,22 @@ const computedManages = computed(() => {
 
                         <DescriptionListItem>
                             <DT>{{__('Salary')}}</DT>
-                            <DD>{{ employee.salaries[employee.salaries.length - 1]['salary'].toLocaleString() + ' ' + employee.salaries[employee.salaries.length - 1]['currency'] }}</DD>
+                            <DD>{{ (employee.salaries && employee.salaries.length > 0 && employee.salaries[employee.salaries.length - 1]?.salary != null) ? (Number(employee.salaries[employee.salaries.length - 1].salary).toLocaleString() + ' ' + (employee.salaries[employee.salaries.length - 1].currency || '')) : __('N/A') }}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem>
                             <DT>{{__('Position')}}</DT>
-                            <DD>{{ (employee.employee_positions.length === 0) ? __('N/A') : employee.employee_positions[employee.employee_positions.length - 1]['position']?.['name'] ?? __('N/A') }}</DD>
+                            <DD>{{ (!employee.employee_positions || employee.employee_positions.length === 0) ? __('N/A') : employee.employee_positions[employee.employee_positions.length - 1]?.['position']?.['name'] ?? __('N/A') }}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem colored>
                             <DT>{{__('Shift')}}</DT>
-                            <DD>{{ (employee.employee_shifts.length === 0) ? __('N/A') : employee.employee_shifts.filter(shift => shift.end_date === null).map(shift => shift.shift?.name)[0] ?? __('N/A') }}</DD>
+                            <DD>{{ (!employee.employee_shifts || employee.employee_shifts.length === 0) ? __('N/A') : employee.employee_shifts.filter(shift => shift.end_date === null).map(shift => shift.shift?.name)[0] ?? __('N/A') }}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem colored>
                             <DT>{{__('Access Permissions')}}</DT>
-                            <DD>{{ (employee.roles.length === 0) ? __('Not Assigned') : employee.roles[employee.roles.length - 1]['name'].replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase()) }}</DD>
+                            <DD>{{ (!employee.roles || employee.roles.length === 0) ? __('Not Assigned') : employee.roles[employee.roles.length - 1]?.['name']?.replace(/_/g, ' ')?.replace(/\b\w/g, (match) => match.toUpperCase()) ?? __('Not Assigned') }}</DD>
                         </DescriptionListItem>
 
 
@@ -178,7 +178,7 @@ const computedManages = computed(() => {
                             <DT>
                                 {{__('Manages')}}
                                 <ToolTip direction="top">{{__('IDs of the branches and/or departments that this employee manages, if any.')}}</ToolTip></DT>
-                            <DD>{{ props.employee.manages.length > 0 ? computedManages : __('Nothing') }}</DD>
+                            <DD>{{ (props.employee.manages && props.employee.manages.length > 0) ? computedManages : __('Nothing') }}</DD>
                         </DescriptionListItem>
                     </DescriptionList>
                 </Card>

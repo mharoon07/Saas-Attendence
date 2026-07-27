@@ -185,7 +185,7 @@ Class ValidationServices extends Controller {
 
             'name' => ['required', 'string', 'unique:shifts', 'max:255'],
             'description' => ['nullable', 'string'],
-            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
+            'regular_duty_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }
@@ -204,7 +204,7 @@ Class ValidationServices extends Controller {
 
             'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
             'description' => ['nullable', 'string'],
-            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
+            'regular_duty_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }
@@ -215,7 +215,7 @@ Class ValidationServices extends Controller {
             'end_time' => ['required', 'date_format:H:i:s'],
             'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
             'description' => ['nullable', 'string'],
-            'regular_duty_hours' => ['required', 'numeric', 'min:0', 'max:24'],
+            'regular_duty_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
 
         ], $this->validationMessages);
     }

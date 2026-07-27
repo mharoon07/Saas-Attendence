@@ -126,8 +126,8 @@ onUnmounted(() => {
                     :class="{'bg-purple-50 dark:bg-purple-900/30 font-medium': modelValue == opt[valueKey]}"
                 >
                     <span>{{ opt[labelKey] }}</span>
-                    <span v-if="opt.device_employee_id" class="text-xs text-gray-400 ml-2">
-                        (PIN: {{ opt.device_employee_id }})
+                    <span v-if="opt.device_employee_id || opt.employee_code || opt.id" class="text-xs text-purple-600 dark:text-purple-400 font-semibold ml-2">
+                        ({{ opt.employee_code || ('EM-' + (opt.device_employee_id || opt.id)) }})
                     </span>
                 </li>
             </ul>
