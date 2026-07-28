@@ -325,6 +325,7 @@ Class ValidationServices extends Controller {
             'negative_hour_rate' => ['nullable','numeric', 'min:0'],
             'loan_deduction' => ['nullable', 'numeric', 'min:0'],
             'advance_payment_deduction' => ['nullable', 'numeric', 'min:0'],
+            'unpaid_leave_deduction' => ['nullable', 'numeric', 'min:0'],
 
             // Metric Multiplier
             'metricsIDs' => ['required','array'],

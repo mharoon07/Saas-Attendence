@@ -9,21 +9,49 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $today = Carbon::today()->toDateString();
+
         if (!isAdmin()) {
             // Don't expose leave requests to non-admins other than the employee's.
             $leaveRequests = \App\Models\Request::with('employee')
                 ->where('status', 1)
                 ->where('employee_id', '=', auth()->user()->id)
                 ->get();
+
+            $employeeId = auth()->user()->id;
+            $leaveStats = [
+                'total' => \App\Models\Leave::where('employee_id', $employeeId)->count(),
+                'pending' => \App\Models\Leave::where('employee_id', $employeeId)->where('status', 'Pending')->count(),
+                'approved' => \App\Models\Leave::where('employee_id', $employeeId)->where('status', 'Approved')->count(),
+                'rejected' => \App\Models\Leave::where('employee_id', $employeeId)->where('status', 'Rejected')->count(),
+                'currently_on_leave' => \App\Models\Leave::where('employee_id', $employeeId)
+                    ->where('status', 'Approved')
+                    ->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today)
+                    ->count(),
+            ];
         } else {
             $leaveRequests = \App\Models\Request::with('employee')
                 ->where('status', 1)
                 ->get();
+
+            $leaveStats = [
+                'total' => \App\Models\Leave::count(),
+                'pending' => \App\Models\Leave::where('status', 'Pending')->count(),
+                'approved' => \App\Models\Leave::where('status', 'Approved')->count(),
+                'rejected' => \App\Models\Leave::where('status', 'Rejected')->count(),
+                'currently_on_leave' => \App\Models\Leave::where('status', 'Approved')
+                    ->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today)
+                    ->distinct('employee_id')
+                    ->count(),
+            ];
         }
 
         return Inertia::render('Dashboard', [
             'calendarItems' => \App\Models\Calendar::get(),
             'leaveRequests' => $leaveRequests,
+            'leaveStats' => $leaveStats,
         ]);
     }
 

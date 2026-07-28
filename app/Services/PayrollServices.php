@@ -86,9 +86,41 @@ class PayrollServices
             ->whereIn('status', ['missed', 'absent'])
             ->count();
             
-        // Leaves would be recorded in a Leaves table or as a specific attendance status. 
-        // Currently, they just use 'absent' / 'missed'. Let's say 0 for now.
-        $leaveDays = 0; 
+        $dailySalary = $attendableDays > 0 ? $payroll->base / $attendableDays : 0;
+
+        $approvedLeaves = \App\Models\Leave::where('employee_id', $employee->id)
+            ->where('status', 'Approved')
+            ->where(function($q) use ($payroll) {
+                $q->whereBetween('start_date', [$payroll->period_start, $payroll->period_end])
+                  ->orWhereBetween('end_date', [$payroll->period_start, $payroll->period_end])
+                  ->orWhere(function($sub) use ($payroll) {
+                      $sub->where('start_date', '<=', $payroll->period_start)
+                          ->where('end_date', '>=', $payroll->period_end);
+                  });
+            })
+            ->get();
+
+        $leaveDays = 0;
+        $unpaidLeaveDays = 0;
+
+        foreach ($approvedLeaves as $leave) {
+            $start = Carbon::parse(max($leave->start_date, $payroll->period_start));
+            $end = Carbon::parse(min($leave->end_date, $payroll->period_end));
+
+            if ($leave->half_day) {
+                $days = 0.5;
+            } else {
+                $days = $start->diffInDays($end) + 1;
+            }
+
+            $leaveDays += $days;
+
+            if (strtolower($leave->leave_type) === 'unpaid') {
+                $unpaidLeaveDays += $days;
+            }
+        }
+
+        $unpaidLeaveDeduction = round($unpaidLeaveDays * $dailySalary, 2);
 
         $hours = $employee->monthHours($year, $month);
 
@@ -143,6 +175,7 @@ class PayrollServices
             'custom_items' => $res['custom_deductions'] ?? $payroll->deductions->custom_items ?? [],
             'undertime' => $undertime,
             'negative_hour_rate' => $negativeHourRate,
+            'unpaid_leave_deduction' => $unpaidLeaveDeduction,
             'loan_deduction' => $loanDeduction,
             'advance_payment_deduction' => $advancePaymentDeduction,
             'status' => true,

@@ -296,6 +296,14 @@
                             </tr>
                         @endif
 
+                        @if($payroll->deductions && $payroll->deductions->unpaid_leave_deduction > 0)
+                            @php $hasDeductions = true; @endphp
+                            <tr>
+                                <td class="kv-label">Unpaid Leaves:</td>
+                                <td class="kv-value">{{ $payroll->currency }} {{ number_format($payroll->deductions->unpaid_leave_deduction) }}</td>
+                            </tr>
+                        @endif
+
                         @if($payroll->deductions && $payroll->deductions->undertime > 0)
                             @php $hasDeductions = true; @endphp
                             <tr>

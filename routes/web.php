@@ -56,6 +56,10 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
 
     // Calendar
     Route::get('calendar', [\App\Http\Controllers\CalendarController::class, 'calendarIndex'])->name('calendar.index');
+    // Leaves
+    Route::put('leaves/{id}/approve', [\App\Http\Controllers\LeaveController::class, 'approve'])->name('leaves.approve');
+    Route::put('leaves/{id}/reject', [\App\Http\Controllers\LeaveController::class, 'reject'])->name('leaves.reject');
+    Route::resource('leaves', \App\Http\Controllers\LeaveController::class);
     Route::resource('calendars', \App\Http\Controllers\CalendarController::class);
 
 
@@ -82,6 +86,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('loans', \App\Http\Controllers\LoanController::class)->only(['index', 'show']);
     Route::resource('advance-payments', \App\Http\Controllers\AdvancePaymentController::class)->only(['index', 'show']);
     Route::resource('cash-transactions', \App\Http\Controllers\CashTransactionController::class)->only(['index', 'show']);
+    Route::resource('leaves', \App\Http\Controllers\LeaveController::class)->only(['index', 'show']);
     Route::get('calendar', [\App\Http\Controllers\CalendarController::class, 'calendarIndex'])->name('calendar.index');
 
     Route::get('my-attendance', [\App\Http\Controllers\AttendanceController::class, 'attendanceDashboard'])->name('attendance.dashboard');

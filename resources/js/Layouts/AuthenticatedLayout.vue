@@ -73,6 +73,11 @@ const toggleDark = useToggle(isDark);
                     <TableIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 
+                <SidebarListItem :item-name="__('Leaves')" link="leaves.index"
+                                 :active-links="['leaves.index', 'leaves.show', 'leaves.create', 'leaves.edit']">
+                    <TableIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
                 <SidebarListItem :item-name="__('Payrolls')" link="payrolls.index"
                                  :activeLinks="['payrolls.index', 'payrolls.show', 'payrolls.edit']"
                 >
@@ -148,6 +153,11 @@ const toggleDark = useToggle(isDark);
 
                 <SidebarListItem :item-name="__('My Attendance')" link="attendance.dashboard"
                                  :active-links="['attendance.dashboard']">
+                    <TableIcon class="text-gray-500 dark:text-gray-100"/>
+                </SidebarListItem>
+
+                <SidebarListItem :item-name="__('My Leaves')" link="leaves.index"
+                                 :active-links="['leaves.index', 'leaves.show']">
                     <TableIcon class="text-gray-500 dark:text-gray-100"/>
                 </SidebarListItem>
 

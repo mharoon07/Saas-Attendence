@@ -82,6 +82,7 @@ const form = useForm({
     negative_hour_rate: props.deductions.negative_hour_rate,
     loan_deduction: props.deductions.loan_deduction ?? 0,
     advance_payment_deduction: props.deductions.advance_payment_deduction ?? 0,
+    unpaid_leave_deduction: props.deductions.unpaid_leave_deduction ?? 0,
 
     // Metric Multiplier
     metricsIDs: props.metrics.map(metric => metric.id),
@@ -123,6 +124,7 @@ const total_deductions = computed(() => {
     return form.quick_pay ? 0 : (
         parseFloat(income_tax_calc) +
         parseFloat(Math.abs(negativeHours) * form.negative_hour_rate) +
+        parseFloat(form.unpaid_leave_deduction) +
         parseFloat(form.loan_deduction) +
         parseFloat(form.advance_payment_deduction) +
         customSum
@@ -512,6 +514,19 @@ const destroy = () => {
                                     />
                                     <TableBody>-</TableBody>
                                     <TableBody>{{ form.advance_payment_deduction }}</TableBody>
+                                </TableRow>
+                                <TableRow>
+                                    <TableBodyHeader>{{ __('Unpaid Leaves Deduction') }}
+                                        <ToolTip>
+                                            {{ __('Automatically calculated based on approved unpaid leaves.') }}
+                                        </ToolTip>
+                                    </TableBodyHeader>
+                                    <TextInput
+                                        id="unpaid_leave_deduction" type="number" class="mt-1 block bg-gray-100" v-model="form.unpaid_leave_deduction"
+                                        autocomplete="off" step="0.01" min="0" placeholder="0" readonly
+                                    />
+                                    <TableBody>-</TableBody>
+                                    <TableBody>{{ form.unpaid_leave_deduction }}</TableBody>
                                 </TableRow>
                                 <TableRow>
                                     <TableBodyHeader>{{ __('Total') }}</TableBodyHeader>

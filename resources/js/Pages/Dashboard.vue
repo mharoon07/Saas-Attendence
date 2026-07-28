@@ -30,6 +30,7 @@ import dayjs from "dayjs";
 const props = defineProps({
     calendarItems: Object,
     leaveRequests: Object,
+    leaveStats: Object,
 });
 
 // Admin Public Holiday quick creator form
@@ -136,6 +137,30 @@ onMounted(() => {
                     <Card class="w-full !mt-0">
                         <h1 class="!card-header !mb-0">
                             {{ __('Welcome, :name', {name: $page.props.auth.user.name}) }}!</h1>
+                    </Card>
+                </div>
+
+                <!-- LEAVE SUMMARY CARDS -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <Card class="p-4 bg-white dark:bg-gray-800 text-center shadow-sm">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ __('Total Leaves') }}</p>
+                        <h3 class="text-3xl font-extrabold mt-1 text-purple-600 dark:text-purple-400">{{ leaveStats.total }}</h3>
+                    </Card>
+                    <Card class="p-4 bg-white dark:bg-gray-800 text-center shadow-sm">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ __('Pending Leaves') }}</p>
+                        <h3 class="text-3xl font-extrabold mt-1 text-amber-500">{{ leaveStats.pending }}</h3>
+                    </Card>
+                    <Card class="p-4 bg-white dark:bg-gray-800 text-center shadow-sm">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ __('Approved Leaves') }}</p>
+                        <h3 class="text-3xl font-extrabold mt-1 text-green-500">{{ leaveStats.approved }}</h3>
+                    </Card>
+                    <Card class="p-4 bg-white dark:bg-gray-800 text-center shadow-sm">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ __('Rejected Leaves') }}</p>
+                        <h3 class="text-3xl font-extrabold mt-1 text-red-500">{{ leaveStats.rejected }}</h3>
+                    </Card>
+                    <Card class="p-4 bg-white dark:bg-gray-800 text-center shadow-sm col-span-2 md:col-span-1">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ __('Currently On Leave') }}</p>
+                        <h3 class="text-3xl font-extrabold mt-1 text-blue-500">{{ leaveStats.currently_on_leave }}</h3>
                     </Card>
                 </div>
 

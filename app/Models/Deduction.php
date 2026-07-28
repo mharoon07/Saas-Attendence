@@ -32,6 +32,7 @@ class Deduction extends Model
 
         return $this->income_tax +
             $this->undertime +
+            $this->unpaid_leave_deduction +
             $this->loan_deduction +
             $this->advance_payment_deduction +
             $customItemsSum;
