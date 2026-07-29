@@ -59,6 +59,8 @@ const form = useForm({
     department_id: props.employee.department_id,
     position_id: (lastPosition && lastPosition.position) ? lastPosition.position.id : '',
     shift_id: (lastShift && lastShift.shift) ? lastShift.shift.id : '',
+    salary_type: lastSalary ? (lastSalary.salary_type || 'monthly') : 'monthly',
+    hourly_rate: lastSalary ? (lastSalary.hourly_rate || '') : '',
     currency: lastSalary ? lastSalary.currency : 'PKR',
     monthly_salary: lastSalary ? lastSalary.monthly_salary : '',
     overtime_rate: lastSalary ? lastSalary.overtime_rate : '',
@@ -69,8 +71,20 @@ const form = useForm({
     custom_deductions: lastSalary && lastSalary.custom_deductions ? lastSalary.custom_deductions : [],
 });
 
-const salary_type = ref('monthly');
-const hourly_rate_input = ref('');
+watch(() => form.device_employee_id, (newVal) => {
+    if (newVal) {
+        const cleaned = String(newVal).replace(/[^0-9]/g, '');
+        if (cleaned !== newVal) {
+            form.device_employee_id = cleaned;
+        }
+    }
+});
+
+const initialSalaryType = lastSalary ? (lastSalary.salary_type || 'monthly') : 'monthly';
+const initialHourlyRate = lastSalary ? (lastSalary.hourly_rate || '') : '';
+
+const salary_type = ref(initialSalaryType);
+const hourly_rate_input = ref(initialHourlyRate ? String(initialHourlyRate) : '');
 
 const selectedShiftDutyHours = computed(() => {
     if (!form.shift_id) return 8;
@@ -82,6 +96,8 @@ const onHourlyRateInput = () => {
     if (salary_type.value === 'hourly') {
         const rate = parseFloat(hourly_rate_input.value) || 0;
         const dutyHours = selectedShiftDutyHours.value;
+        form.salary_type = 'hourly';
+        form.hourly_rate = rate ? rate.toFixed(2) : '';
         form.monthly_salary = (rate * dutyHours * 30).toFixed(2);
         if (!form.overtime_rate || form.overtime_rate == 0) {
             form.overtime_rate = rate.toFixed(2);
@@ -94,6 +110,8 @@ const onMonthlySalaryInput = () => {
         const monthly = parseFloat(form.monthly_salary) || 0;
         const dutyHours = selectedShiftDutyHours.value;
         const calculatedHourly = (monthly / (30 * dutyHours));
+        form.salary_type = 'monthly';
+        form.hourly_rate = calculatedHourly ? calculatedHourly.toFixed(2) : '';
         hourly_rate_input.value = calculatedHourly ? calculatedHourly.toFixed(2) : '';
     }
 };
@@ -103,11 +121,14 @@ const daily_salary = computed(() => {
     return (parseFloat(form.monthly_salary) / 30).toFixed(2);
 });
 
-if (form.monthly_salary) {
+if (initialSalaryType === 'hourly' && initialHourlyRate) {
+    onHourlyRateInput();
+} else if (form.monthly_salary) {
     onMonthlySalaryInput();
 }
 
 watch(salary_type, (newType) => {
+    form.salary_type = newType;
     if (newType === 'hourly') {
         onHourlyRateInput();
     } else {
@@ -160,6 +181,8 @@ const branchForm = useForm({
 });
 const departmentForm = useForm({
     name: '',
+    department: '',
+    code: '',
 });
 
 const submit = () => {
@@ -234,6 +257,7 @@ const submitBranch = () => {
     });
 };
 const submitDepartment = () => {
+    departmentForm.department = departmentForm.name;
     departmentForm.post(route('departments.store'), {
         preserveScroll: true,
         onError: () => {
@@ -243,7 +267,6 @@ const submitDepartment = () => {
             useToast().success(__('Department Created Successfully'));
             document.getElementById('closeDepartmentModal').click();
             departmentForm.reset();
-            form.department_id = props.departments.length;
         }
     });
 };
@@ -277,6 +300,24 @@ const submitShift = () => {
                     <form @submit.prevent="submit" class="form">
                         <div class="grid grid-cols-2 gap-8">
                             <div>
+                                <InputLabel for="device_employee_id" :value="__('Employee ID')"/>
+                                <TextInput
+                                    id="device_employee_id"
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    class="mt-1 block w-full"
+                                    :class="{'border border-red-500': form.errors.device_employee_id}"
+                                    v-model="form.device_employee_id"
+                                    @keydown="(e) => { if (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }"
+                                    required
+                                    autocomplete="off"
+                                    placeholder="1001"
+                                />
+                                 <InputError class="mt-2" :message="form.errors.device_employee_id"/>
+                            </div>
+
+                            <div>
                                 <InputLabel for="name" :value="__('Full Name')"/>
                                 <TextInput
                                     id="name"
@@ -292,7 +333,9 @@ const submitShift = () => {
 
                                 <InputError class="mt-2" :message="form.errors.name"/>
                             </div>
+                        </div>
 
+                        <div class="grid grid-cols-2 gap-8 mt-4">
                             <div>
                                 <InputLabel for="national_id" :value="__('National ID')"/>
                                 <TextInput
@@ -308,9 +351,6 @@ const submitShift = () => {
                                 />
                                 <InputError class="mt-2" :message="form.errors.national_id"/>
                             </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-8 mt-4">
                             <div>
                                 <InputLabel for="phone" :value="__('Phone')"/>
                                 <TextInput
@@ -325,6 +365,9 @@ const submitShift = () => {
                                 />
                                 <InputError class="mt-2" :message="form.errors.phone"/>
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-8 mt-4">
                             <div>
                                 <InputLabel for="email" :value="__('Email')"/>
                                 <TextInput
@@ -827,23 +870,7 @@ const submitShift = () => {
                             </div>
                             <div></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-8 mt-4">
-                            <div>
-                                <InputLabel for="device_employee_id" :value="__('Employee ID')"/>
-                                <TextInput
-                                    id="device_employee_id"
-                                    type="number"
-                                    min="1"
-                                    class="mt-1 block w-full"
-                                    :class="{'border border-red-500': form.errors.device_employee_id}"
-                                    v-model="form.device_employee_id"
-                                    autocomplete="off"
-                                    placeholder="1"
-                                />
-                                <p class="text-xs text-gray-500 mt-1">{{ __('Enter numeric ID only (e.g. 1, 2, 10). Displayed automatically as EM-1, EM-2.') }}</p>
-                                <InputError class="mt-2" :message="form.errors.device_employee_id"/>
-                            </div>
-                        </div>
+
 
                         <hr class="my-6 border-gray-200 dark:border-gray-700"/>
 

@@ -18,6 +18,8 @@ Class ValidationServices extends Controller {
         'phone' => 'This phone number format is not valid.',
         'currency' => 'There seems to be an issue with your selected currency. Have you selected one?',
         'role' => 'Invalid Role',
+        'device_employee_id.regex' => 'The Employee ID must be a positive number without letters, decimals, or special characters (e.g. 1001, 25).',
+        'device_employee_id.unique' => 'The Employee ID has already been taken. Please enter a unique ID or leave empty to auto-generate.',
     ];
 
     protected array $roles = [
@@ -42,11 +44,13 @@ Class ValidationServices extends Controller {
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'device_employee_id' => ['nullable', 'string', 'max:20', 'unique:employees'],
+            'device_employee_id' => ['nullable', 'string', 'max:20', 'regex:/^[1-9][0-9]*$/', 'unique:employees,device_employee_id'],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
+            'salary_type' => ['nullable', 'string', 'in:monthly,hourly'],
+            'hourly_rate' => ['nullable', 'numeric'],
             'monthly_salary' => ['required','numeric'],
             'overtime_rate' => ['required','numeric'],
             'weekly_off_day' => ['required', 'string', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
@@ -75,11 +79,13 @@ Class ValidationServices extends Controller {
             'bank_acc_no' => ['iban', 'nullable'],
             'branch_id' => ['required', 'integer'],
             'department_id' => ['required', 'integer'],
-            'device_employee_id' => ['nullable', 'string', 'max:20', 'unique:employees,device_employee_id,'.$id],
+            'device_employee_id' => ['required', 'string', 'max:20', 'regex:/^[1-9][0-9]*$/', 'unique:employees,device_employee_id,'.$id],
 
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
+            'salary_type' => ['nullable', 'string', 'in:monthly,hourly'],
+            'hourly_rate' => ['nullable', 'numeric'],
             'monthly_salary' => ['required','numeric'],
             'overtime_rate' => ['required','numeric'],
             'weekly_off_day' => ['required', 'string', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
@@ -328,17 +334,19 @@ Class ValidationServices extends Controller {
             'unpaid_leave_deduction' => ['nullable', 'numeric', 'min:0'],
 
             // Metric Multiplier
-            'metricsIDs' => ['required','array'],
-            'metricsIDs.*' => ['required','integer', 'min:1'],
-            'metrics' => ['required','array'],
-            'metrics.*' => ['required','numeric'],
-            'performance_multiplier' => ['nullable','numeric', 'min:0'],
+            'metricsIDs' => ['nullable', 'array'],
+            'metricsIDs.*' => ['nullable', 'integer', 'min:1'],
+            'metrics' => ['nullable', 'array'],
+            'metrics.*' => ['nullable', 'numeric'],
+            'performance_multiplier' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validatedData = $request->validate($rules);
 
+        $metricsIDs = $validatedData['metricsIDs'] ?? [];
+        $metrics = $validatedData['metrics'] ?? [];
 
-        if (count($validatedData['metricsIDs']) != count($validatedData['metrics'])) {
+        if (count($metricsIDs) != count($metrics)) {
             $errorMessage = 'Arrays have different sizes.';
             return response()->json(['error' => $errorMessage], 422);
         }
@@ -378,6 +386,10 @@ Class ValidationServices extends Controller {
             'date.month' => ['nullable', 'integer', 'min:0', 'max:11'],
             'date.year' => ['nullable', 'integer', 'min:1453', 'max:2999'],
             'status' => ['nullable', 'string', 'in:all,pending,reviewed,paid'],
+            'department_id' => ['nullable'],
+            'shift_id' => ['nullable'],
+            'employee_id' => ['nullable'],
+            'tab' => ['nullable', 'string', 'in:current,previous'],
         ]);
     }
 

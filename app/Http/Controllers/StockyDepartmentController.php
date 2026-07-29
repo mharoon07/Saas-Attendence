@@ -10,6 +10,31 @@ use Inertia\Response;
 class StockyDepartmentController extends Controller
 {
     /**
+     * Calculate next department code
+     */
+    public static function getNextCode(): string
+    {
+        $codes = StockyDepartment::pluck('code')->toArray();
+        $maxNumeric = 0;
+        foreach ($codes as $code) {
+            if (is_numeric($code)) {
+                $val = intval($code);
+                if ($val > $maxNumeric) {
+                    $maxNumeric = $val;
+                }
+            }
+        }
+
+        $candidateNumber = $maxNumeric + 1;
+        do {
+            $candidate = str_pad($candidateNumber, 2, '0', STR_PAD_LEFT);
+            $candidateNumber++;
+        } while (in_array($candidate, $codes));
+
+        return $candidate;
+    }
+
+    /**
      * Display a listing of the Stocky departments.
      */
     public function index(Request $request): Response
@@ -31,15 +56,8 @@ class StockyDepartmentController extends Controller
      */
     public function create(): Response
     {
-        $maxCode = \Illuminate\Support\Facades\DB::connection('stocky')
-            ->table('departments')
-            ->max('code');
-
-        $nextCodeNumber = $maxCode && is_numeric($maxCode) ? intval($maxCode) + 1 : 1;
-        $nextCode = str_pad($nextCodeNumber, 2, '0', STR_PAD_LEFT);
-
         return Inertia::render('StockyDepartment/Create', [
-            'nextCode' => $nextCode,
+            'nextCode' => static::getNextCode(),
         ]);
     }
 
@@ -48,6 +66,14 @@ class StockyDepartmentController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$request->has('department') && $request->has('name')) {
+            $request->merge(['department' => $request->input('name')]);
+        }
+
+        if (!$request->filled('code')) {
+            $request->merge(['code' => static::getNextCode()]);
+        }
+
         $validated = $request->validate([
             'department' => [
                 'required',
@@ -70,6 +96,6 @@ class StockyDepartmentController extends Controller
             'department_head' => null,
         ]);
 
-        return to_route('departments.index');
+        return back()->with('success', __('Department Created Successfully'));
     }
 }

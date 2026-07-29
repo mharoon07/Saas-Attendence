@@ -63,16 +63,18 @@ class PayrollServices
             $month = $startDate->month;
         }
 
-        $monthEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('j');
-        $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
+        if ($payroll->period_start && $payroll->period_end) {
+            $pStart = Carbon::parse($payroll->period_start);
+            $pEnd = Carbon::parse($payroll->period_end);
+            $monthDates = [$pStart->year, $pStart->month, $pStart->day, $pEnd->year, $pEnd->month, $pEnd->day];
+            $totalCalendarDays = $pStart->diffInDays($pEnd) + 1;
+        } else {
+            $monthEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('j');
+            $monthDates = [$year, $month, 1, $year, $month, (int)$monthEnd];
+            $totalCalendarDays = (int)$monthEnd;
+        }
 
-        $commonServices = new \App\Services\CommonServices();
-        $weekendOffDays = [$employee->weekly_off_day];
-
-        $holidaysCount = $commonServices->countHolidays($employee->hired_on, $monthDates);
-        $weekendsCount = $commonServices->calcOffDays($weekendOffDays, $employee->hired_on, $monthDates);
-        
-        $attendableDays = $monthEnd - $holidaysCount - $weekendsCount;
+        $attendableDays = $totalCalendarDays;
 
         $attended = \App\Models\Attendance::where('employee_id', $employee->id)
             ->whereYear('date', $year)
@@ -80,14 +82,6 @@ class PayrollServices
             ->whereNotIn('status', ['missed', 'absent'])
             ->count();
             
-        $absented = \App\Models\Attendance::where('employee_id', $employee->id)
-            ->whereYear('date', $year)
-            ->whereMonth('date', $month)
-            ->whereIn('status', ['missed', 'absent'])
-            ->count();
-            
-        $dailySalary = $attendableDays > 0 ? $payroll->base / $attendableDays : 0;
-
         $approvedLeaves = \App\Models\Leave::where('employee_id', $employee->id)
             ->where('status', 'Approved')
             ->where(function($q) use ($payroll) {
@@ -120,6 +114,9 @@ class PayrollServices
             }
         }
 
+        $absented = max(0, (int)($attendableDays - $attended - $leaveDays));
+        $dailySalary = $attendableDays > 0 ? $payroll->base / $attendableDays : 0;
+
         $unpaidLeaveDeduction = round($unpaidLeaveDays * $dailySalary, 2);
 
         $hours = $employee->monthHours($year, $month);
@@ -143,8 +140,12 @@ class PayrollServices
         } else {
             $activeLoans = \App\Models\Loan::where('employee_id', $employee->id)->where('status', 'active')->get();
             foreach ($activeLoans as $loan) {
-                $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
-                $deduction = (float)$loan->total_amount * ($pct / 100);
+                if ($loan->deduction_type === 'fixed' && (float)$loan->deduction_amount > 0) {
+                    $deduction = (float)$loan->deduction_amount;
+                } else {
+                    $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
+                    $deduction = (float)$loan->total_amount * ($pct / 100);
+                }
                 if ($deduction <= 0) {
                     $deduction = (float)$loan->remaining_balance;
                 }

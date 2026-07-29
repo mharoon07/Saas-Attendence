@@ -37,23 +37,28 @@ const props = defineProps({
 
 const attendanceForm = useForm({
     attendance_id: '',
+    date: '',
     status: '',
     sign_in_time: '',
     sign_off_time: '',
 });
 
 const editingAttendanceId = ref(null);
+const editingAttendanceDate = ref(null);
 
 const editAttendance = (att) => {
     editingAttendanceId.value = att.id;
-    attendanceForm.attendance_id = att.id;
-    attendanceForm.status = att.status;
+    editingAttendanceDate.value = att.date;
+    attendanceForm.attendance_id = att.id || '';
+    attendanceForm.date = att.date;
+    attendanceForm.status = att.status === 'weekend' ? 'absent' : att.status;
     attendanceForm.sign_in_time = att.sign_in_time ? att.sign_in_time.substring(0, 5) : '';
     attendanceForm.sign_off_time = att.sign_off_time ? att.sign_off_time.substring(0, 5) : '';
 };
 
 const cancelAttendanceEdit = () => {
     editingAttendanceId.value = null;
+    editingAttendanceDate.value = null;
     attendanceForm.reset();
 };
 
@@ -216,16 +221,12 @@ const destroy = () => {
                     <h1 class="card-header">{{ __('Basic Data') }}</h1>
                     <DescriptionList class="!pb-0">
                         <DescriptionListItem colored>
-                            <DT>{{ __('Payroll ID') }}</DT>
-                            <DD>{{ payroll.id }}</DD>
-                        </DescriptionListItem>
-                        <DescriptionListItem colored>
                             <DT>{{ __('Issued for Employee') }}</DT>
                             <Link :href="route('employees.show', {id: payroll.employee.id})">
                                 <DD>{{ payroll.employee.name }}</DD>
                             </Link>
                         </DescriptionListItem>
-                        <DescriptionListItem>
+                        <DescriptionListItem colored>
                             <DT>{{ __('Base Salary') }}</DT>
                             <DD>{{ payroll.currency + ' ' + parseInt(payroll.base).toLocaleString() }}</DD>
                         </DescriptionListItem>
@@ -237,11 +238,6 @@ const destroy = () => {
                             <DT>{{ __('Due Date') }}</DT>
                             <DD>{{ payroll.due_date }}</DD>
                         </DescriptionListItem>
-                        <DescriptionListItem colored>
-                            <DT>{{ __('Invoice Currency') }}</DT>
-                            <DD>{{ payroll.currency }}</DD>
-                        </DescriptionListItem>
-                        <DescriptionListItem colored></DescriptionListItem>
                     </DescriptionList>
                 </Card>
 
@@ -279,9 +275,9 @@ const destroy = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="att in attendances" :key="att.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <tr v-for="att in attendances" :key="att.id || att.date" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                     <td class="px-6 py-4">{{ att.date }}</td>
-                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                    <td class="px-6 py-4" v-if="(att.id && editingAttendanceId === att.id) || (!att.id && editingAttendanceDate === att.date)">
                                         <select v-model="attendanceForm.status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
                                             <option value="on_time">{{ __('On Time') }}</option>
                                             <option value="late">{{ __('Late') }}</option>
@@ -297,22 +293,23 @@ const destroy = () => {
                                             'bg-yellow-100 text-yellow-800': att.status === 'late',
                                             'bg-red-100 text-red-800': ['absent', 'missed'].includes(att.status),
                                             'bg-blue-100 text-blue-800': att.status === 'leave',
-                                            'bg-orange-100 text-orange-800': att.status === 'early_departure'
-                                        }">{{ __(att.status.replace('_', ' ')) }}</span>
+                                            'bg-orange-100 text-orange-800': att.status === 'early_departure',
+                                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300': ['weekend', 'weekly_off_day'].includes(att.status)
+                                        }">{{ att.status === 'weekly_off_day' ? __('Weekly Off Day') : __(att.status.replace(/_/g, ' ')) }}</span>
                                     </td>
                                     
-                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                    <td class="px-6 py-4" v-if="(att.id && editingAttendanceId === att.id) || (!att.id && editingAttendanceDate === att.date)">
                                         <input type="time" v-model="attendanceForm.sign_in_time" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
                                     </td>
                                     <td class="px-6 py-4" v-else>{{ att.sign_in_time || '-' }}</td>
 
-                                    <td class="px-6 py-4" v-if="editingAttendanceId === att.id">
+                                    <td class="px-6 py-4" v-if="(att.id && editingAttendanceId === att.id) || (!att.id && editingAttendanceDate === att.date)">
                                         <input type="time" v-model="attendanceForm.sign_off_time" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500">
                                     </td>
                                     <td class="px-6 py-4" v-else>{{ att.sign_off_time || '-' }}</td>
 
                                     <td class="px-6 py-4 text-right">
-                                        <div v-if="editingAttendanceId === att.id" class="flex gap-2">
+                                        <div v-if="(att.id && editingAttendanceId === att.id) || (!att.id && editingAttendanceDate === att.date)" class="flex gap-2">
                                             <button @click="updateAttendance" class="font-medium text-green-600 dark:text-green-500 hover:underline">{{ __('Save') }}</button>
                                             <button @click="cancelAttendanceEdit" class="font-medium text-red-600 dark:text-red-500 hover:underline">{{ __('Cancel') }}</button>
                                         </div>
@@ -685,10 +682,12 @@ const destroy = () => {
                             {{ __('Delete Payroll') }}
                         </button>
                         <form @submit.prevent="submit">
-                            <PrimaryButton :class="{ 'opacity-25': form.processing }"
-                                           :disabled="form.processing">
+                            <button type="submit"
+                                    :class="{ 'opacity-25': form.processing }"
+                                    :disabled="form.processing"
+                                    class="text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-900">
                                 {{ __('Confirm Payroll') }}
-                            </PrimaryButton>
+                            </button>
                         </form>
                     </div>
                 </Card>

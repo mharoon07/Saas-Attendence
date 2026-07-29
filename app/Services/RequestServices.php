@@ -18,8 +18,18 @@ class RequestServices
         /* Check if the employee requested a leave request that is before present day, which is not allowed.
         Used !isAfter instead of isBefore because the latter rejects same day requests, which I don't intend to prevent */
 
-        if ($req['type'] == 'leave' && $startDate->isBefore(Carbon::now()) && !$startDate->isSameDay(Carbon::now()))
-            return back()->withErrors(['past_leave' => 'You can\'t make a leave request before today.']);
+        if ($req['type'] == 'leave') {
+            $latestPayrollEndDate = \App\Models\Payroll::where('employee_id', $request->user()->id)->max('period_end')
+                ?? \App\Models\Payroll::max('period_end');
+
+            if ($latestPayrollEndDate && $startDate->lte(Carbon::parse($latestPayrollEndDate))) {
+                return back()->withErrors(['past_leave' => 'Leave cannot be added for a previous payroll period.']);
+            }
+
+            if ($startDate->isBefore(Carbon::now()) && !$startDate->isSameDay(Carbon::now())) {
+                return back()->withErrors(['past_leave' => 'Leave cannot be added for a previous payroll period.']);
+            }
+        }
 
         $req['start_date'] = $req['date'][0];
         $req['end_date'] = $req['date'][1];

@@ -11,17 +11,25 @@ import VueDatePicker from "@vuepic/vue-datepicker";
 import '@vuepic/vue-datepicker/dist/main.css'
 import dayjs from "dayjs";
 import Card from "@/Components/Card.vue";
-import {inject, watch} from "vue";
+import {inject, watch, computed} from "vue";
 import {__} from "@/Composables/useTranslations.js";
 
-defineProps({
+const props = defineProps({
     types: Array,
+    latest_payroll_end_date: String,
 });
 
 const form = useForm({
     type: '',
     date: '',
     message: '',
+});
+
+const minLeaveDate = computed(() => {
+    if (!props.latest_payroll_end_date) return dayjs().tz().format();
+    const nextDay = dayjs(props.latest_payroll_end_date).add(1, 'day');
+    const today = dayjs();
+    return nextDay.isAfter(today) ? nextDay.format('YYYY-MM-DD') : today.tz().format();
 });
 
 watch(() => form.type, (value) => {
@@ -84,7 +92,7 @@ const submitForm = () => {
                                     :class="{'border border-red-500': form.errors.date}"
                                     :placeholder="__('Select Date...')"
                                     :enable-time-picker="false"
-                                    :min-date="form.type === 'leave'? dayjs().tz().format() : ''"
+                                    :min-date="form.type === 'leave'? minLeaveDate : ''"
                                     :dark="inject('isDark').value"
                                     range
                                     required

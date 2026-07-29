@@ -76,7 +76,22 @@ const deleteLeave = (id) => {
     });
 };
 
+const isEndDatePassed = (endDate) => {
+    if (!endDate) return false;
+    const [year, month, day] = endDate.split('-').map(Number);
+    const end = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end < today;
+};
+
 const approveLeave = (id) => {
+    const leaveItem = props.leaves.data.find(l => l.id === id);
+    if (leaveItem && isEndDatePassed(leaveItem.end_date)) {
+        Swal.fire(__('Error'), __('Cannot approve a leave request after its end date has passed.'), 'error');
+        return;
+    }
+
     Swal.fire({
         title: __('Approve Leave'),
         text: __('Are you sure you want to approve this leave request?'),
@@ -102,6 +117,12 @@ const approveLeave = (id) => {
 };
 
 const rejectLeave = (id) => {
+    const leaveItem = props.leaves.data.find(l => l.id === id);
+    if (leaveItem && isEndDatePassed(leaveItem.end_date)) {
+        Swal.fire(__('Error'), __('Cannot reject a leave request after its end date has passed.'), 'error');
+        return;
+    }
+
     Swal.fire({
         title: __('Reject Leave'),
         text: __('Are you sure you want to reject this leave request?'),
@@ -298,12 +319,15 @@ const statusClass = (status) => {
                                     <div class="flex items-center gap-2">
                                         <Link :href="route('leaves.show', leave.id)" class="text-purple-600 hover:text-purple-900 font-semibold text-xs">{{ __('View') }}</Link>
                                         <template v-if="$page.props.auth.user.roles.includes('admin')">
-                                            <Link :href="route('leaves.edit', leave.id)" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">{{ __('Edit') }}</Link>
+                                            <Link v-if="!isEndDatePassed(leave.end_date)" :href="route('leaves.edit', leave.id)" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">{{ __('Edit') }}</Link>
+                                            <span v-else class="text-gray-400 font-semibold text-xs cursor-not-allowed opacity-60" :title="__('Cannot edit after end date has passed')">{{ __('Edit') }}</span>
                                             
                                             <!-- Approve/Reject inline actions for Pending leaves -->
                                             <template v-if="leave.status === 'Pending'">
-                                                <button @click="approveLeave(leave.id)" class="text-emerald-600 hover:text-emerald-950 font-bold text-xs">{{ __('Approve') }}</button>
-                                                <button @click="rejectLeave(leave.id)" class="text-rose-600 hover:text-rose-950 font-bold text-xs">{{ __('Reject') }}</button>
+                                                <button v-if="!isEndDatePassed(leave.end_date)" @click="approveLeave(leave.id)" class="text-emerald-600 hover:text-emerald-950 font-bold text-xs">{{ __('Approve') }}</button>
+                                                <span v-else class="text-gray-400 font-bold text-xs cursor-not-allowed opacity-60" :title="__('Cannot approve after end date has passed')">{{ __('Approve') }}</span>
+                                                <button v-if="!isEndDatePassed(leave.end_date)" @click="rejectLeave(leave.id)" class="text-rose-600 hover:text-rose-950 font-bold text-xs">{{ __('Reject') }}</button>
+                                                <span v-else class="text-gray-400 font-bold text-xs cursor-not-allowed opacity-60" :title="__('Cannot reject after end date has passed')">{{ __('Reject') }}</span>
                                             </template>
 
                                             <button @click="deleteLeave(leave.id)" class="text-red-600 hover:text-red-950 font-semibold text-xs">{{ __('Delete') }}</button>

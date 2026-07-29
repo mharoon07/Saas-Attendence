@@ -56,6 +56,24 @@ class Employee extends Authenticatable
         return 'EM-' . ($num ?: $this->id);
     }
 
+    public static function getNextEmployeeId(): string
+    {
+        $maxDeviceEmpId = static::whereNotNull('device_employee_id')
+            ->whereRaw("device_employee_id REGEXP '^[0-9]+$'")
+            ->selectRaw('MAX(CAST(device_employee_id AS UNSIGNED)) as max_id')
+            ->value('max_id');
+
+        $maxPrimaryId = static::max('id');
+
+        $maxId = max((int)$maxDeviceEmpId, (int)$maxPrimaryId);
+
+        if ($maxId <= 0) {
+            return '1001';
+        }
+
+        return (string)($maxId + 1);
+    }
+
     protected static function boot(): void
     {
         parent::boot();
@@ -124,13 +142,16 @@ class Employee extends Authenticatable
         return $this->positions()->where('end_date', null)->get();
     }
 
-    /**************------- Department -------*************/
-    public function department(): \Illuminate\Database\Eloquent\Relations\HasOne
+    /**************------- Department & Branch -------*************/
+    public function department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->hasOne(Department::class, 'id', 'department_id');
+        return $this->belongsTo(StockyDepartment::class, 'department_id');
     }
 
-    /**************------- Department -------*************/
+    public function branch(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
 
 
     public function manages(){

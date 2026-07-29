@@ -20,6 +20,10 @@ class EmployeeServices
         }
         $password = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8);
         $res['password'] = bcrypt($password);
+        if (empty($res['device_employee_id'])) {
+            $res['device_employee_id'] = Employee::getNextEmployeeId();
+        }
+
         $emp = Employee::create([
             'name' => $res['name'],
             'email' => $res['email'],
@@ -32,13 +36,15 @@ class EmployeeServices
             'department_id' => $res['department_id'],
             'weekly_off_day' => $res['weekly_off_day'],
             'password' => $res['password'],
-            'device_employee_id' => !empty($res['device_employee_id']) ? $res['device_employee_id'] : null,
+            'device_employee_id' => $res['device_employee_id'],
         ]);
 
         // Salary Registration
         EmployeeSalary::create([
             'employee_id' => $emp['id'],
             'currency' => $res['currency'],
+            'salary_type' => $res['salary_type'] ?? 'monthly',
+            'hourly_rate' => $res['hourly_rate'] ?? null,
             'monthly_salary' => $res['monthly_salary'],
             'daily_salary' => $res['monthly_salary'] / 30,
             'overtime_rate' => $res['overtime_rate'],
@@ -134,19 +140,28 @@ class EmployeeServices
         }
 
         $curSalary = $employee->salaries()->whereNull('end_date')->first();
+        $newSalaryType = $res['salary_type'] ?? 'monthly';
+        $newHourlyRate = $res['hourly_rate'] ?? null;
         if (
+            !$curSalary ||
             $curSalary->monthly_salary != $res['monthly_salary'] ||
             $curSalary->overtime_rate != $res['overtime_rate'] ||
             $curSalary->currency != $res['currency'] ||
+            ($curSalary->salary_type ?? 'monthly') != $newSalaryType ||
+            $curSalary->hourly_rate != $newHourlyRate ||
             json_encode($curSalary->custom_additions) !== json_encode($res['custom_additions'] ?? null) ||
             json_encode($curSalary->custom_deductions) !== json_encode($res['custom_deductions'] ?? null)
         ) {
-            $employee->salaries()->whereNull('end_date')->first()->update([
-                'end_date' => Carbon::now()->format('Y-m-d'),
-            ]);
+            if ($curSalary) {
+                $curSalary->update([
+                    'end_date' => Carbon::now()->format('Y-m-d'),
+                ]);
+            }
             $employee->salaries()->create([
                 'employee_id' => $employee->id,
                 'currency' => $res['currency'],
+                'salary_type' => $newSalaryType,
+                'hourly_rate' => $newHourlyRate,
                 'monthly_salary' => $res['monthly_salary'],
                 'daily_salary' => $res['monthly_salary'] / 30,
                 'overtime_rate' => $res['overtime_rate'],

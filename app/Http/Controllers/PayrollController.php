@@ -32,6 +32,9 @@ class PayrollController extends Controller
         // Setting up filters, if any.
         $dateParam = $request->input('date', '');
         $statusParam = $request->input('status', '');
+        $departmentParam = $request->input('department_id', '');
+        $shiftParam = $request->input('shift_id', '');
+        $employeeParam = $request->input('employee_id', '');
 
         if ($dateParam) {
             $date = Carbon::createFromDate($request->date['year'], $request->date['month'], Carbon::now()->startOfMonth()->format('j'));
@@ -60,6 +63,26 @@ class PayrollController extends Controller
         if (!isAdmin())
             $payrolls->where('payrolls.employee_id', auth()->user()->id);
 
+        // Department Filter
+        if ($departmentParam) {
+            $payrolls->where('employees.department_id', $departmentParam);
+        }
+
+        // Shift Filter
+        if ($shiftParam) {
+            $payrolls->whereIn('payrolls.employee_id', function($q) use ($shiftParam) {
+                $q->select('employee_id')
+                  ->from('employee_shifts')
+                  ->where('shift_id', $shiftParam)
+                  ->whereNull('end_date');
+            });
+        }
+
+        // Employee Filter
+        if ($employeeParam) {
+            $payrolls->where('payrolls.employee_id', $employeeParam);
+        }
+
         // Date Filter (using new month/year structure if available)
         if ($date) {
             $payrolls->where(function($q) use ($request) {
@@ -74,20 +97,52 @@ class PayrollController extends Controller
             });
         }
 
+        $tabParam = $request->input('tab', 'current');
+        if (!in_array($tabParam, ['current', 'previous'])) {
+            $tabParam = 'current';
+        }
+
+        // Current vs Previous Tab Filter
+        if ($tabParam === 'previous') {
+            $payrolls->where('payrolls.is_current', false);
+        } else {
+            $payrolls->where('payrolls.is_current', true);
+        }
+
         // Status Filter
         if ($statusParam == 'pending') {
-            $payrolls->where('status', false)->where('is_reviewed', false);
+            $payrolls->where('payrolls.status', false)->where('payrolls.is_reviewed', false);
         } else if ($statusParam == 'reviewed') {
-            $payrolls->where('status', false)->where('is_reviewed', true);
+            $payrolls->where('payrolls.status', false)->where('payrolls.is_reviewed', true);
         } else if ($statusParam == 'paid') {
-            $payrolls->where('status', true);
+            $payrolls->where('payrolls.status', true);
         }
 
         return Inertia::render('Payroll/Payrolls', [
-            'payrolls' => $payrolls->paginate(config('constants.data.pagination_count')),
+            'payrolls' => $payrolls->paginate(config('constants.data.pagination_count'))->withQueryString(),
             "dateParam" => $date,
             "statusParam" => $statusParam,
-            "employees" => \App\Models\Employee::select('id', 'name')->get(),
+            "departmentParam" => $departmentParam,
+            "shiftParam" => $shiftParam,
+            "employeeParam" => $employeeParam,
+            "tabParam" => $tabParam,
+            "employees" => \App\Models\Employee::with(['employeeShifts' => function($q) {
+                $q->whereNull('end_date');
+            }])
+            ->get()
+            ->map(function($emp) {
+                $activeShift = $emp->employeeShifts->first();
+                return [
+                    'id' => $emp->id,
+                    'name' => $emp->name,
+                    'device_employee_id' => $emp->device_employee_id,
+                    'employee_code' => $emp->employee_code,
+                    'department_id' => $emp->department_id,
+                    'shift_id' => $activeShift ? $activeShift->shift_id : null,
+                ];
+            }),
+            "shifts" => \App\Models\Shift::select('id', 'name')->orderBy('name')->get(),
+            "departments" => \App\Models\StockyDepartment::select(['id', 'department as name'])->orderBy('department')->get(),
         ]);
     }
 
@@ -119,38 +174,109 @@ class PayrollController extends Controller
             return redirect()->route('payrolls.index')->withErrors(['error' => 'Employee associated with this payroll not found.']);
         }
 
-        if ($payroll->period_start && $payroll->period_end) {
-            $startDate = Carbon::parse($payroll->period_start);
-            $endDate = Carbon::parse($payroll->period_end);
-            $totalDays = $startDate->diffInDays($endDate) + 1;
-            $dates = [$startDate->year, $startDate->month, $startDate->day, $endDate->year, $endDate->month, $endDate->day];
-            
-            $weekendOffDays = [$payroll->employee->weekly_off_day];
-            $offDays = $commonServices->calcOffDays($weekendOffDays, $payroll->employee->hired_on, $dates);
-            $holidays = $commonServices->countHolidays($payroll->employee->hired_on, $dates);
-            
-            $month_stats = [
-                'attendable_days' => $totalDays - $offDays - $holidays,
-                'attended' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
-                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
-                    ->where('status', 'on_time')
-                    ->count(),
-                'absented' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
-                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
-                    ->whereIn('status', ['missed', 'absent'])
-                    ->count(),
-                'late' => \App\Models\Attendance::where('employee_id', $payroll->employee->id)
-                    ->whereBetween('date', [$payroll->period_start, $payroll->period_end])
-                    ->where('status', 'late')
-                    ->count(),
-            ];
-            $hours = $payroll->employee->periodHours($payroll->period_start, $payroll->period_end);
-        } else {
-            $payrollDate = Carbon::parse($payroll->due_date)->subMonthNoOverflow();
-            $dates = [$payrollDate->year, $payrollDate->month, 1, $payrollDate->year, $payrollDate->month, $payrollDate->daysInMonth];
-            $month_stats = $commonServices->getMonthStats($payroll->employee, $dates);
-            $hours = $payroll->employee->monthHours($payrollDate->year, $payrollDate->month);
+        $startDate = Carbon::parse($payroll->period_start ?? $payroll->due_date)->startOfMonth();
+        $endDate = Carbon::parse($payroll->period_end ?? $payroll->due_date);
+
+        // Fetch explicit attendance records for this period
+        $existingAttendances = \App\Models\Attendance::where('employee_id', $payroll->employee->id)
+            ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->get()
+            ->keyBy('date');
+
+        // Fetch approved leave records for this period
+        $approvedLeaves = \App\Models\Leave::where('employee_id', $payroll->employee->id)
+            ->where('status', 'Approved')
+            ->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [$startDate->toDateString(), $endDate->toDateString()])
+                  ->orWhereBetween('end_date', [$startDate->toDateString(), $endDate->toDateString()])
+                  ->orWhere(function($sub) use ($startDate, $endDate) {
+                      $sub->where('start_date', '<=', $startDate->toDateString())
+                          ->where('end_date', '>=', $endDate->toDateString());
+                  });
+            })
+            ->get();
+
+        $weekendOffDay = strtolower($payroll->employee->weekly_off_day ?? 'sunday');
+
+        $fullAttendancesList = [];
+        $attendedCount = 0;
+        $absentedCount = 0;
+        $lateCount = 0;
+        $leaveDaysCount = 0;
+
+        $periodCursor = $startDate->copy();
+        while ($periodCursor->lte($endDate)) {
+            $dateStr = $periodCursor->toDateString();
+            $dayOfWeek = strtolower($periodCursor->format('l'));
+
+            // Check Priority 1: Approved Leave
+            $isOnLeave = false;
+            foreach ($approvedLeaves as $l) {
+                if ($dateStr >= $l->start_date && $dateStr <= $l->end_date) {
+                    $isOnLeave = true;
+                    break;
+                }
+            }
+
+            if ($isOnLeave) {
+                $leaveDaysCount++;
+                $fullAttendancesList[] = [
+                    'id' => null,
+                    'date' => $dateStr,
+                    'status' => 'leave',
+                    'sign_in_time' => null,
+                    'sign_off_time' => null,
+                ];
+            } else if (isset($existingAttendances[$dateStr])) {
+                $att = $existingAttendances[$dateStr];
+                if ($att->status === 'on_time') {
+                    $attendedCount++;
+                } else if ($att->status === 'late') {
+                    $attendedCount++;
+                    $lateCount++;
+                } else if (in_array($att->status, ['absent', 'missed'])) {
+                    $absentedCount++;
+                } else if ($att->status === 'leave') {
+                    $leaveDaysCount++;
+                } else {
+                    $attendedCount++;
+                }
+                $fullAttendancesList[] = [
+                    'id' => $att->id,
+                    'date' => $dateStr,
+                    'status' => $att->status,
+                    'sign_in_time' => $att->sign_in_time,
+                    'sign_off_time' => $att->sign_off_time,
+                ];
+            } else if ($dayOfWeek === $weekendOffDay) {
+                $fullAttendancesList[] = [
+                    'id' => null,
+                    'date' => $dateStr,
+                    'status' => 'weekly_off_day',
+                    'sign_in_time' => null,
+                    'sign_off_time' => null,
+                ];
+            } else {
+                $absentedCount++;
+                $fullAttendancesList[] = [
+                    'id' => null,
+                    'date' => $dateStr,
+                    'status' => 'absent',
+                    'sign_in_time' => null,
+                    'sign_off_time' => null,
+                ];
+            }
+
+            $periodCursor->addDay();
         }
+
+        $month_stats = [
+            'attendable_days' => $payroll->regular_working_days ?? max(0, count($fullAttendancesList) - $leaveDaysCount),
+            'attended' => $attendedCount,
+            'absented' => $payroll->absent_days ?? $absentedCount,
+            'late' => $lateCount,
+        ];
+        $hours = $payroll->employee->periodHours($startDate->toDateString(), $endDate->toDateString());
 
         // Calculate pending loans and advance payments for this payroll
         $activeLoans = \App\Models\Loan::where('employee_id', $payroll->employee->id)
@@ -159,8 +285,12 @@ class PayrollController extends Controller
         
         $loanDeduction = 0;
         foreach ($activeLoans as $loan) {
-            $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
-            $deduction = (float)$loan->total_amount * ($pct / 100);
+            if ($loan->deduction_type === 'fixed' && (float)$loan->deduction_amount > 0) {
+                $deduction = (float)$loan->deduction_amount;
+            } else {
+                $pct = ($loan->deduction_percentage && (float)$loan->deduction_percentage > 0) ? (float)$loan->deduction_percentage : 100;
+                $deduction = (float)$loan->total_amount * ($pct / 100);
+            }
             if ($deduction <= 0) {
                 $deduction = (float)$loan->remaining_balance;
             }
@@ -173,11 +303,6 @@ class PayrollController extends Controller
             ->get();
         
         $advancePaymentDeduction = (float)$activeAdvances->sum('remaining_amount');
-
-        $attendances = \App\Models\Attendance::where('employee_id', $payroll->employee->id)
-            ->whereYear('date', $payroll->payroll_year ?? Carbon::parse($payroll->period_start)->year)
-            ->whereMonth('date', $payroll->payroll_month ?? Carbon::parse($payroll->period_start)->month)
-            ->get();
 
         $additions = $payroll->additions ? $payroll->additions->toArray() : [
             'custom_items' => [],
@@ -211,7 +336,7 @@ class PayrollController extends Controller
             'income_tax' => $incomeTax,
             'hours' => $hours,
             'metrics' => Metric::where('created_at', '<=', $payroll->created_at)->get(),
-            'attendances' => $attendances,
+            'attendances' => $fullAttendancesList,
         ]);
     }
 
@@ -221,54 +346,107 @@ class PayrollController extends Controller
             'month_year.month' => 'required|integer',
             'month_year.year' => 'required|integer',
             'employee_id' => 'nullable|exists:employees,id',
+            'shift_id' => 'nullable|integer',
+            'department_id' => 'nullable|integer',
         ]);
 
         $year = $request->month_year['year'];
         $month = $request->month_year['month'] + 1; // VueDatePicker month is 0-indexed
 
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
+        $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $monthEnd = Carbon::create($year, $month, 1)->endOfMonth();
+        $today = Carbon::today();
+
+        $startDate = $monthStart->toDateString();
+
+        // If generating for the current ongoing month, cap period_end at current date
+        if ($monthStart->year == $today->year && $monthStart->month == $today->month && $today->lt($monthEnd)) {
+            $endDate = $today->toDateString();
+        } else {
+            $endDate = $monthEnd->toDateString();
+        }
         
-        $employees = $request->employee_id ? \App\Models\Employee::where('id', $request->employee_id)->get() : \App\Models\Employee::all();
+        $employeeQuery = \App\Models\Employee::query();
+
+        if ($request->filled('employee_id')) {
+            $employeeQuery->where('id', $request->employee_id);
+        }
+
+        if ($request->filled('department_id')) {
+            $employeeQuery->where('department_id', $request->department_id);
+        }
+
+        if ($request->filled('shift_id')) {
+            $employeeQuery->whereHas('employeeShifts', function ($q) use ($request) {
+                $q->whereNull('end_date')->where('shift_id', $request->shift_id);
+            });
+        }
+
+        $employees = $employeeQuery->get();
+        $batchId = 'BATCH-' . Carbon::now()->format('YmdHis');
+
+        // Move all previously current payroll records to Previous Payroll page
+        Payroll::where('is_current', true)->update(['is_current' => false]);
 
         foreach ($employees as $employee) {
             $employeeStartDate = Carbon::parse($startDate);
             $employeeEndDate = Carbon::parse($endDate);
 
-            // Find overlapping payrolls for this employee
-            $existingPayrolls = Payroll::where('employee_id', $employee->id)
+            // Check if a payroll record already exists for this employee for this month/year cycle
+            $existingPayroll = Payroll::where('employee_id', $employee->id)
                 ->where('payroll_month', $month)
                 ->where('payroll_year', $year)
-                ->get();
+                ->first();
 
-            if ($existingPayrolls->isNotEmpty()) {
-                continue; // Skip this employee if payroll for this month already exists
+            if ($existingPayroll) {
+                // Update/replace the existing payroll record for this cycle
+                $existingPayroll->update([
+                    'batch_id' => $batchId,
+                    'is_current' => true,
+                    'currency' => $employee->salary()[0],
+                    'base' => $employee->salary()[1],
+                    'total_payable' => $employee->salary()[1],
+                    'performance_multiplier' => 1,
+                    'due_date' => $employeeEndDate->toDateString(),
+                    'period_start' => $employeeStartDate->toDateString(),
+                    'period_end' => $employeeEndDate->toDateString(),
+                    'status' => false,
+                    'is_reviewed' => false,
+                ]);
+                $payroll = $existingPayroll;
+
+                // Reset additions & deductions for fresh calculation
+                \App\Models\Addition::where('payroll_id', $payroll->id)->delete();
+                \App\Models\Deduction::where('payroll_id', $payroll->id)->delete();
+            } else {
+                // Create a new payroll record if no record exists for this employee for this cycle
+                $payroll = Payroll::create([
+                    'employee_id' => $employee->id,
+                    'batch_id' => $batchId,
+                    'is_current' => true,
+                    'currency' => $employee->salary()[0],
+                    'base' => $employee->salary()[1],
+                    'total_payable' => $employee->salary()[1],
+                    'performance_multiplier' => 1,
+                    'due_date' => $employeeEndDate->toDateString(),
+                    'period_start' => $employeeStartDate->toDateString(),
+                    'period_end' => $employeeEndDate->toDateString(),
+                    'payroll_month' => $month,
+                    'payroll_year' => $year,
+                ]);
             }
-
-            $payroll = Payroll::create([
-                'employee_id' => $employee->id,
-                'currency' => $employee->salary()[0],
-                'base' => $employee->salary()[1],
-                'total_payable' => $employee->salary()[1],
-                'performance_multiplier' => 1,
-                "due_date" => Carbon::now()->toDateString(),
-                'period_start' => $employeeStartDate->toDateString(),
-                'period_end' => $employeeEndDate->toDateString(),
-                'payroll_month' => $month,
-                'payroll_year' => $year,
-            ]);
 
             $activeSalary = $employee->salaries()->whereNull('end_date')->first();
 
             \App\Models\Addition::create([
                 'payroll_id' => $payroll->id,
-                "due_date" => Carbon::now()->toDateString(),
+                "due_date" => $employeeEndDate->toDateString(),
                 'custom_items' => $activeSalary ? $activeSalary->custom_additions : null,
             ]);
 
             \App\Models\Deduction::create([
                 'payroll_id' => $payroll->id,
-                "due_date" => Carbon::now()->toDateString(),
+                "due_date" => $employeeEndDate->toDateString(),
                 'custom_items' => $activeSalary ? $activeSalary->custom_deductions : null,
             ]);
 
@@ -291,35 +469,38 @@ class PayrollController extends Controller
     public function updateAttendance(Request $request, string $id)
     {
         $request->validate([
-            'attendance_id' => 'required|exists:attendances,id',
-            'status' => 'required|in:on_time,late,absent,missed,early_departure,leave', // Added leave for demo
+            'attendance_id' => 'nullable|exists:attendances,id',
+            'date' => 'nullable|date',
+            'status' => 'required|in:on_time,late,absent,missed,early_departure,leave',
             'sign_in_time' => 'nullable|date_format:H:i',
             'sign_off_time' => 'nullable|date_format:H:i',
         ]);
 
-        $attendance = \App\Models\Attendance::findOrFail($request->attendance_id);
+        $payroll = Payroll::findOrFail($id);
         $status = $request->status;
-        
-        if ($status === 'leave') {
-            $leaveCount = \App\Models\Attendance::where('employee_id', $attendance->employee_id)
-                ->whereMonth('date', \Carbon\Carbon::parse($attendance->date)->month)
-                ->whereYear('date', \Carbon\Carbon::parse($attendance->date)->year)
-                ->where('status', 'leave')
-                ->where('id', '!=', $attendance->id)
-                ->count();
-                
-            if ($leaveCount >= 4) {
-                $status = 'absent';
-            }
+
+        if ($request->filled('attendance_id')) {
+            $attendance = \App\Models\Attendance::findOrFail($request->attendance_id);
+            $attendance->update([
+                'status' => $status,
+                'sign_in_time' => $request->sign_in_time,
+                'sign_off_time' => $request->sign_off_time,
+            ]);
+        } else if ($request->filled('date')) {
+            \App\Models\Attendance::updateOrCreate(
+                [
+                    'employee_id' => $payroll->employee_id,
+                    'date' => $request->date,
+                ],
+                [
+                    'status' => $status,
+                    'sign_in_time' => $request->sign_in_time,
+                    'sign_off_time' => $request->sign_off_time,
+                ]
+            );
         }
 
-        $attendance->update([
-            'status' => $status,
-            'sign_in_time' => $request->sign_in_time,
-            'sign_off_time' => $request->sign_off_time,
-        ]);
-
-        $payroll = $this->payrollServices->recalculatePayroll($id);
+        $this->payrollServices->recalculatePayroll($id);
 
         return redirect()->back();
     }

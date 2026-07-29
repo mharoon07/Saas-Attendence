@@ -14,11 +14,13 @@ const props = defineProps({
     leave: Object,
     employees: Array,
     leave_types: Array,
+    latest_payroll_end_date: String,
+    employee_payroll_dates: Object,
 });
 
 const form = useForm({
     _method: 'PUT',
-    employee_id: props.leave.employee_id,
+    employee_id: [props.leave.employee_id],
     leave_type: props.leave.leave_type,
     start_date: props.leave.start_date,
     end_date: props.leave.end_date,
@@ -29,16 +31,40 @@ const form = useForm({
     notes: props.leave.notes ?? '',
 });
 
-const selectedEmpObj = ref((props.employees ?? []).find(emp => emp.id === form.employee_id) || null);
-const employeeOptions = computed(() => {
-    return (props.employees ?? []).map(emp => ({
+const selectedEmpObj = ref((props.employees ?? []).find(emp => emp.id === props.leave.employee_id) || null);
+const employeeOptions = computed(() => [
+    { id: 'all', name: __('All Employees') },
+    ...(props.employees ?? []).map(emp => ({
         id: emp.id,
-        name: `${emp.name} (${emp.employee_code || ('EM-' + (emp.device_employee_id || emp.id))})`
-    }));
+        name: emp.name,
+        device_employee_id: emp.device_employee_id,
+        employee_code: emp.employee_code
+    }))
+]);
+
+const maxProcessedPayrollDate = computed(() => {
+    if (!props.employee_payroll_dates) return props.latest_payroll_end_date || null;
+    const selected = form.employee_id;
+    if (Array.isArray(selected) && selected.length === 1 && selected[0] !== 'all') {
+        const empId = selected[0];
+        return props.employee_payroll_dates[empId] || props.latest_payroll_end_date || null;
+    }
+    return props.latest_payroll_end_date || null;
+});
+
+const minAllowedStartDate = computed(() => {
+    if (!maxProcessedPayrollDate.value) return '';
+    const date = new Date(maxProcessedPayrollDate.value);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().split('T')[0];
 });
 
 watch(() => form.employee_id, (newVal) => {
-    selectedEmpObj.value = (props.employees ?? []).find(emp => emp.id === newVal) || null;
+    if (Array.isArray(newVal) && newVal.length === 1 && newVal[0] !== 'all') {
+        selectedEmpObj.value = (props.employees ?? []).find(emp => emp.id == newVal[0]) || null;
+    } else {
+        selectedEmpObj.value = null;
+    }
 });
 
 const totalDays = computed(() => {
@@ -64,13 +90,28 @@ watch(() => form.start_date, (val) => {
     if (form.half_day && val) {
         form.end_date = val;
     }
+    if (val && maxProcessedPayrollDate.value && val <= maxProcessedPayrollDate.value) {
+        form.errors.start_date = __('Leave cannot be added for a previous payroll period.');
+    } else if (form.errors.start_date === __('Leave cannot be added for a previous payroll period.')) {
+        delete form.errors.start_date;
+    }
 });
 
 const handleFileChange = (e) => {
     form.attachment = e.target.files[0];
 };
 
+const isEndDatePassed = computed(() => {
+    if (!props.leave?.end_date) return false;
+    const [year, month, day] = props.leave.end_date.split('-').map(Number);
+    const end = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end < today;
+});
+
 const submit = () => {
+    if (isEndDatePassed.value) return;
     form.post(route('leaves.update', props.leave.id), {
         preserveScroll: true,
     });
@@ -90,21 +131,40 @@ const submit = () => {
                         </Link>
                     </div>
 
+                    <!-- Warning banner if end date has passed -->
+                    <div v-if="isEndDatePassed" class="p-4 mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-md text-red-800 dark:text-red-300 text-sm font-semibold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        {{ __('This leave record\'s end date has passed and cannot be edited.') }}
+                    </div>
+
                     <form @submit.prevent="submit" class="space-y-6">
                         <!-- Select Employee -->
                         <div>
-                            <InputLabel for="employee_id" :value="__('Select Employee')" />
+                            <InputLabel for="employee_id" :value="__('Select Employee(s)')" />
                             <SearchableSelect
                                 v-model="form.employee_id"
                                 :options="employeeOptions"
-                                :placeholder="__('Select employee...')"
+                                :placeholder="__('Select employee(s)...')"
+                                :multiple="true"
                                 class="mt-1"
                             />
                             <InputError class="mt-2" :message="form.errors.employee_id" />
                         </div>
 
                         <!-- Auto-filled Employee ID Info -->
-                        <div v-if="selectedEmpObj" class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm">
+                        <div v-if="Array.isArray(form.employee_id) && form.employee_id.includes('all')" class="p-3 bg-purple-50 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-700 text-sm">
+                            <p class="text-purple-800 dark:text-purple-300 font-semibold">
+                                {{ __('Leave record will be applied to ALL employees.') }}
+                            </p>
+                        </div>
+                        <div v-else-if="Array.isArray(form.employee_id) && form.employee_id.length > 1" class="p-3 bg-purple-50 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-700 text-sm">
+                            <p class="text-purple-800 dark:text-purple-300 font-semibold">
+                                {{ __('Leave record will be applied to :count selected employees.', { count: form.employee_id.length }) }}
+                            </p>
+                        </div>
+                        <div v-else-if="selectedEmpObj" class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm">
                             <p class="text-gray-600 dark:text-gray-300">
                                 <strong>{{ __('Selected Employee Code') }}:</strong> 
                                 {{ selectedEmpObj.employee_code || ('EM-' + (selectedEmpObj.device_employee_id || selectedEmpObj.id)) }}
@@ -149,6 +209,7 @@ const submit = () => {
                                     id="start_date"
                                     type="date"
                                     v-model="form.start_date"
+                                    :min="minAllowedStartDate"
                                     class="mt-1 block w-full rounded border-gray-300 dark:bg-gray-700 dark:border-gray-600 text-gray-950 dark:text-white focus:ring-purple-500 focus:border-purple-500 text-sm"
                                 />
                                 <InputError class="mt-2" :message="form.errors.start_date" />
@@ -234,7 +295,7 @@ const submit = () => {
                             <SecondaryButton @click="$inertia.visit(route('leaves.show', leave.id))">
                                 {{ __('Cancel') }}
                             </SecondaryButton>
-                            <PrimaryButton :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
+                            <PrimaryButton :class="{ 'opacity-25 cursor-not-allowed': form.processing || isEndDatePassed }" :disabled="form.processing || isEndDatePassed">
                                 {{ __('Update Leave Record') }}
                             </PrimaryButton>
                         </div>

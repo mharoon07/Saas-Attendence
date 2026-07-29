@@ -40,10 +40,14 @@ class RequestController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
+        $latestPayrollEndDate = \App\Models\Payroll::where('employee_id', $request->user()->id)->max('period_end')
+            ?? \App\Models\Payroll::max('period_end');
+
         return Inertia::render('Request/RequestCreate', [
             'types' => ['complaint', 'payment', 'leave', 'other'],
+            'latest_payroll_end_date' => $latestPayrollEndDate,
         ]);
     }
 

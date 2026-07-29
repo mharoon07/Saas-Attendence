@@ -88,6 +88,7 @@ class EmployeeController extends Controller
             'positions' => Position::select(['id', 'name'])->get(),
             'roles' => DB::select('SELECT name FROM roles'),
             'shifts' => Shift::get(),
+            'next_employee_id' => Employee::getNextEmployeeId(),
         ]);
     }
 
@@ -111,16 +112,8 @@ class EmployeeController extends Controller
     public function show(string $id): Response
     {
         return Inertia::render('Employee/EmployeeView', [
-            'employee' => Employee::with("salaries", "roles", 'employeeShifts.shift', 'employeePositions.position', 'manages')
-                ->leftjoin('departments', 'employees.department_id',
-                    '=', 'departments.id')
-                ->leftJoin('branches', 'employees.branch_id', '=', 'branches.id')
-                ->where('employees.id', $id)
-                ->select('employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
-                    'employees.address', 'employees.bank_acc_no', 'departments.name as department_name',
-                    'departments.id as department_id', 'branches.id as branch_id', 'branches.name as branch_name',
-                    'employees.hired_on', 'employees.device_employee_id')
-                ->first(),
+            'employee' => Employee::with(["salaries", "roles", 'employeeShifts.shift', 'employeePositions.position', 'manages', 'department', 'branch'])
+                ->findOrFail($id),
         ]);
     }
 

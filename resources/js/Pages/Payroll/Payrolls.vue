@@ -12,7 +12,7 @@ import VueDatePicker from "@vuepic/vue-datepicker";
 import '@vuepic/vue-datepicker/dist/main.css'
 import InputError from "@/Components/InputError.vue";
 import InputLabel from "@/Components/InputLabel.vue";
-import {inject, ref, watch} from "vue";
+import {computed, inject, ref, watch} from "vue";
 import Card from "@/Components/Card.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
@@ -24,27 +24,83 @@ const props = defineProps({
     payrolls: Object,
     dateParam: String,
     statusParam: String,
+    departmentParam: String,
+    shiftParam: String,
+    employeeParam: String,
+    tabParam: String,
     employees: Array,
+    shifts: Array,
+    departments: Array,
 });
-const date = ref(new Date(props.dateParam));
-if (props.dateParam === '') {
-    date.value = '';
-}
-const status = ref(props.statusParam);
-if (props.statusParam === '') {
-    status.value = 'all';
-}
-const filter = (() => {
-    const routeParameters = {date: date.value === null ? null : date.value, status: status.value === null ? null : status.value};
-    router.visit(route('payrolls.index', routeParameters),
-        {preserveState: true, preserveScroll: true})
+
+const date = ref(props.dateParam ? new Date(props.dateParam) : '');
+const status = ref(props.statusParam || 'all');
+const departmentId = ref(props.departmentParam || '');
+const shiftId = ref(props.shiftParam || '');
+const employeeId = ref(props.employeeParam || '');
+const currentTab = ref(props.tabParam || 'current');
+
+const filteredFilterEmployees = computed(() => {
+    if (!props.employees) return [];
+    return props.employees.filter((emp) => {
+        if (shiftId.value && emp.shift_id != shiftId.value) return false;
+        if (departmentId.value && emp.department_id != departmentId.value) return false;
+        return true;
+    });
 });
-watch(date, filter);
+
+const switchTab = (tab) => {
+    currentTab.value = tab;
+    filter();
+};
+
+const filter = () => {
+    const routeParameters = {
+        date: date.value === null ? null : date.value,
+        status: status.value === null ? null : status.value,
+        department_id: departmentId.value || null,
+        shift_id: shiftId.value || null,
+        employee_id: employeeId.value || null,
+        tab: currentTab.value,
+    };
+    router.visit(route('payrolls.index', routeParameters), {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+watch([date, status, departmentId, shiftId, employeeId], filter);
+
 const showGenerateModal = ref(false);
 const generateForm = useForm({
     month_year: null,
     employee_id: '', 
+    shift_id: '',
+    department_id: '',
 });
+
+const filteredTargetEmployees = computed(() => {
+    if (!props.employees) return [];
+    return props.employees.filter((emp) => {
+        if (generateForm.shift_id && emp.shift_id != generateForm.shift_id) {
+            return false;
+        }
+        if (generateForm.department_id && emp.department_id != generateForm.department_id) {
+            return false;
+        }
+        return true;
+    });
+});
+
+watch([() => generateForm.shift_id, () => generateForm.department_id], () => {
+    if (generateForm.employee_id) {
+        const stillValid = filteredTargetEmployees.value.some(e => e.id == generateForm.employee_id);
+        if (!stillValid) {
+            generateForm.employee_id = '';
+        }
+    }
+});
+
 const generatePayroll = () => {
     generateForm.post(route('payrolls.store'), {
         preserveScroll: true,
@@ -93,60 +149,123 @@ const destroy = (id) => {
                             {{__('Generate Payroll')}}
                         </PrimaryButton>
                     </div>
-                    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+
+                    <!-- Current vs Previous Payroll Tabs -->
+                    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+                        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+                            <li class="me-2">
+                                <button
+                                    @click="switchTab('current')"
+                                    :class="[
+                                        'inline-block p-4 border-b-2 rounded-t-lg transition-colors font-semibold',
+                                        currentTab === 'current'
+                                            ? 'text-purple-600 border-purple-600 dark:text-purple-400 dark:border-purple-400'
+                                            : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                    ]"
+                                >
+                                    📄 {{ __('Current Payroll') }}
+                                </button>
+                            </li>
+                            <li class="me-2">
+                                <button
+                                    @click="switchTab('previous')"
+                                    :class="[
+                                        'inline-block p-4 border-b-2 rounded-t-lg transition-colors font-semibold',
+                                        currentTab === 'previous'
+                                            ? 'text-purple-600 border-purple-600 dark:text-purple-400 dark:border-purple-400'
+                                            : 'border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                    ]"
+                                >
+                                    📁 {{ __('Previous Payroll') }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Filter Controls Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 items-end">
+                        <!-- Department Filter -->
                         <div>
-                            <InputLabel for="date" :value="__('Filter by Month') +':'"/>
+                            <InputLabel for="filter_department" :value="__('Filter by Department') + ':'" />
+                            <select
+                                id="filter_department"
+                                v-model="departmentId"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm h-[34px] py-1 px-3 block w-full text-sm mt-1"
+                            >
+                                <option value="">{{ __('All Departments') }}</option>
+                                <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                                    {{ dept.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Shift Filter -->
+                        <div>
+                            <InputLabel for="filter_shift" :value="__('Filter by Shift') + ':'" />
+                            <select
+                                id="filter_shift"
+                                v-model="shiftId"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm h-[34px] py-1 px-3 block w-full text-sm mt-1"
+                            >
+                                <option value="">{{ __('All Shifts') }}</option>
+                                <option v-for="sh in shifts" :key="sh.id" :value="sh.id">
+                                    {{ sh.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Employee Filter -->
+                        <div>
+                            <InputLabel for="filter_employee" :value="__('Filter by Employee') + ':'" />
+                            <select
+                                id="filter_employee"
+                                v-model="employeeId"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm h-[34px] py-1 px-3 block w-full text-sm mt-1"
+                            >
+                                <option value="">{{ __('All Employees') }}</option>
+                                <option v-for="emp in filteredFilterEmployees" :key="emp.id" :value="emp.id">
+                                    {{ emp.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Month Filter -->
+                        <div>
+                            <InputLabel for="date" :value="__('Filter by Month') + ':'" />
                             <VueDatePicker
                                 id="date"
                                 v-model="date"
-                                class="py-1 block w-full"
+                                class="w-full payroll-date-picker"
                                 :placeholder="__('Select a Date...')"
                                 :enable-time-picker="false"
                                 :max-date="new Date()"
                                 month-picker
                                 :dark="inject('isDark').value"
-                                required
                             ></VueDatePicker>
-                            <InputError v-if="Object.keys($page.props.errors).length" class="mt-2" :message="$page.props.errors"/>
                         </div>
-                        <div class="w-1/2" dir="ltr">
-                            <InputLabel for="date" :value="__('Filter by Status')+':'"/>
-                            <ul class="ul-checkbox mb-1">
-                                <li class="li-checkbox">
-                                    <div class="ul-li-div-radio">
-                                        <input id="horizontal-list-radio-all" type="radio" value="all" v-model="status" name="list-radio" class="li-radio-input">
-                                        <label for="horizontal-list-radio-all" class="li-radio-label">{{__('All')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="ul-li-div-radio">
-                                        <input id="horizontal-list-radio-pending" type="radio" value="pending" v-model="status" name="list-radio" class="li-radio-input">
-                                        <label for="horizontal-list-radio-pending" class="li-radio-label">{{__('Pending')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="ul-li-div-radio">
-                                        <input id="horizontal-list-radio-reviewed" type="radio" value="reviewed" v-model="status" name="list-radio" class="li-radio-input">
-                                        <label for="horizontal-list-radio-reviewed" class="li-radio-label">{{__('Reviewed')}}</label>
-                                    </div>
-                                </li>
-                                <li class="li-checkbox">
-                                    <div class="ul-li-div-radio">
-                                        <input id="horizontal-list-radio-paid" type="radio" value="paid" v-model="status" name="list-radio" class="li-radio-input">
-                                        <label for="horizontal-list-radio-paid" class="li-radio-label">{{__('Paid')}}</label>
-                                    </div>
-                                </li>
-                            </ul>
+
+                        <!-- Status Filter -->
+                        <div>
+                            <InputLabel for="status" :value="__('Filter by Status') + ':'" />
+                            <select
+                                id="status"
+                                v-model="status"
+                                class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-purple-500 dark:focus:border-purple-600 focus:ring-purple-500 dark:focus:ring-purple-600 rounded-md shadow-sm h-[34px] py-1 px-3 block w-full text-sm mt-1"
+                            >
+                                <option value="all">{{ __('All') }}</option>
+                                <option value="pending">{{ __('Pending') }}</option>
+                                <option value="reviewed">{{ __('Reviewed') }}</option>
+                                <option value="paid">{{ __('Paid') }}</option>
+                            </select>
                         </div>
                     </div>
                     <Table :links="payrolls.links" :showingNumber="payrolls.data.length" :totalNumber="payrolls.total">
                         <template #Head>
-                            <TableHead>{{__('ID')}}</TableHead>
+                            <TableHead>{{__('Payroll ID')}}</TableHead>
                             <TableHead>{{__('Month/Year')}}</TableHead>
                             <TableHead>{{__('Employee')}}</TableHead>
                             <TableHead>{{__('Monthly Salary')}}</TableHead>
                             <TableHead>{{__('Daily Salary')}}</TableHead>
-                            <TableHead>{{__('Working Days')}}</TableHead>
                             <TableHead>{{__('Absent')}}</TableHead>
                             <TableHead>{{__('Leave')}}</TableHead>
                             <TableHead>{{__('Overtime (Hrs)')}}</TableHead>
@@ -165,7 +284,6 @@ const destroy = (id) => {
                                 <TableBodyHeader :href="route('payrolls.show', {id: payroll.id})">{{payroll.employee_name}} <span class="text-xs text-purple-600 dark:text-purple-400 font-semibold">(EM-{{payroll.device_employee_id || payroll.emp_id}})</span></TableBodyHeader>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.monthly_salary}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.currency}} {{payroll.daily_salary}}</TableBody>
-                                <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.regular_working_days}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.absent_days}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.leave_days}}</TableBody>
                                 <TableBody :href="route('payrolls.show', {id: payroll.id})">{{payroll.overtime_hours}}</TableBody>
@@ -209,6 +327,34 @@ const destroy = (id) => {
                         <InputError class="mt-2" :message="generateForm.errors.month_year" />
                     </div>
                     <div>
+                        <InputLabel for="shift_id" :value="__('Shift Wise (Optional)')" />
+                        <select
+                            id="shift_id"
+                            v-model="generateForm.shift_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        >
+                            <option value="">{{ __('All Shifts') }}</option>
+                            <option v-for="s in shifts" :key="s.id" :value="s.id">
+                                {{ s.name }}
+                            </option>
+                        </select>
+                        <InputError class="mt-2" :message="generateForm.errors.shift_id" />
+                    </div>
+                    <div>
+                        <InputLabel for="department_id" :value="__('Department Wise (Optional)')" />
+                        <select
+                            id="department_id"
+                            v-model="generateForm.department_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                        >
+                            <option value="">{{ __('All Departments') }}</option>
+                            <option v-for="d in departments" :key="d.id" :value="d.id">
+                                {{ d.name }}
+                            </option>
+                        </select>
+                        <InputError class="mt-2" :message="generateForm.errors.department_id" />
+                    </div>
+                    <div>
                         <InputLabel for="employee_id" :value="__('Target Employee (Optional)')" />
                         <select
                             id="employee_id"
@@ -216,7 +362,7 @@ const destroy = (id) => {
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
                         >
                             <option value="">{{ __('All Active Employees') }}</option>
-                            <option v-for="emp in employees" :key="emp.id" :value="emp.id">
+                            <option v-for="emp in filteredTargetEmployees" :key="emp.id" :value="emp.id">
                                 {{ emp.name }} ({{ emp.employee_code || ('EM-' + (emp.device_employee_id || emp.id)) }})
                             </option>
                         </select>
@@ -241,3 +387,37 @@ const destroy = (id) => {
         </Modal>
     </AuthenticatedLayout>
 </template>
+
+<style>
+.payroll-date-picker {
+    margin-top: 0.25rem;
+}
+
+.payroll-date-picker .dp__main {
+    height: 34px !important;
+}
+
+.payroll-date-picker .dp__input {
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    border-radius: 0.375rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    padding-left: 35px !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+}
+
+.dark .payroll-date-picker .dp__input {
+    background-color: #111827 !important;
+    color: #d1d5db !important;
+    border-color: #374151 !important;
+}
+
+.payroll-date-picker .dp__input:focus {
+    border-color: #9333ea !important;
+    box-shadow: 0 0 0 1px #9333ea !important;
+}
+</style>

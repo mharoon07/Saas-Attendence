@@ -30,7 +30,9 @@ const showEditModal = ref(false);
 const addForm = useForm({
     employee_id: '',
     loan_amount: '',
+    deduction_type: 'percentage',
     deduction_percentage: '',
+    deduction_amount: '',
     date: '',
     status: 'active',
 });
@@ -39,7 +41,9 @@ const editForm = useForm({
     id: null,
     employee_id: '',
     loan_amount: '',
+    deduction_type: 'percentage',
     deduction_percentage: '',
+    deduction_amount: '',
     date: '',
     status: 'active',
 });
@@ -58,7 +62,9 @@ const openEditModal = (loan) => {
     editForm.id = loan.id;
     editForm.employee_id = loan.employee_id;
     editForm.loan_amount = loan.total_amount;
-    editForm.deduction_percentage = loan.deduction_percentage;
+    editForm.deduction_type = loan.deduction_type || 'percentage';
+    editForm.deduction_percentage = loan.deduction_percentage || '';
+    editForm.deduction_amount = loan.deduction_amount || '';
     editForm.date = loan.date;
     editForm.status = loan.status;
     showEditModal.value = true;
@@ -101,7 +107,7 @@ const deleteLoan = (loanId) => {
                             <TableHead>{{__('ID')}}</TableHead>
                             <TableHead>{{__('Employee Name')}}</TableHead>
                             <TableHead>{{__('Total Amount')}}</TableHead>
-                            <TableHead>{{__('Deduction %')}}</TableHead>
+                            <TableHead>{{__('Deduction Rate')}}</TableHead>
                             <TableHead>{{__('Paid Amount')}}</TableHead>
                             <TableHead>{{__('Remaining Balance')}}</TableHead>
                             <TableHead>{{__('Status')}}</TableHead>
@@ -112,7 +118,10 @@ const deleteLoan = (loanId) => {
                                 <TableBodyHeader>{{loan.id}}</TableBodyHeader>
                                 <TableBodyHeader>{{loan.employee.name}}</TableBodyHeader>
                                 <TableBody>{{loan.total_amount}}</TableBody>
-                                <TableBody>{{loan.deduction_percentage}}%</TableBody>
+                                <TableBody>
+                                    <span v-if="loan.deduction_type === 'fixed'">{{ loan.deduction_amount }} ({{ __('Fixed') }})</span>
+                                    <span v-else>{{ loan.deduction_percentage ? loan.deduction_percentage + '%' : '-' }}</span>
+                                </TableBody>
                                 <TableBody>{{loan.paid_amount}}</TableBody>
                                 <TableBody>{{loan.remaining_balance}}</TableBody>
                                 <TableBody>{{loan.status}}</TableBody>
@@ -158,15 +167,54 @@ const deleteLoan = (loanId) => {
                     </div>
 
                     <div>
+                        <InputLabel :value="__('Deduction Method')" />
+                        <div class="mt-2 flex items-center gap-6">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input
+                                    type="radio"
+                                    v-model="addForm.deduction_type"
+                                    value="percentage"
+                                    class="text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-700"
+                                />
+                                <span class="ms-2 text-sm text-gray-700 dark:text-gray-300 font-medium">{{ __('Percentage (%)') }}</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input
+                                    type="radio"
+                                    v-model="addForm.deduction_type"
+                                    value="fixed"
+                                    class="text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-700"
+                                />
+                                <span class="ms-2 text-sm text-gray-700 dark:text-gray-300 font-medium">{{ __('Fixed Amount') }}</span>
+                            </label>
+                        </div>
+                        <InputError class="mt-2" :message="addForm.errors.deduction_type" />
+                    </div>
+
+                    <div v-if="addForm.deduction_type === 'percentage'">
                         <InputLabel for="deduction_percentage" :value="__('Loan Deduction Percentage (%)')" />
                         <TextInput
                             id="deduction_percentage"
                             type="number"
                             v-model="addForm.deduction_percentage"
                             class="mt-1 block w-full"
+                            placeholder="e.g. 10"
                             required
                         />
                         <InputError class="mt-2" :message="addForm.errors.deduction_percentage" />
+                    </div>
+
+                    <div v-else>
+                        <InputLabel for="deduction_amount" :value="__('Fixed Deduction Amount')" />
+                        <TextInput
+                            id="deduction_amount"
+                            type="number"
+                            v-model="addForm.deduction_amount"
+                            class="mt-1 block w-full"
+                            placeholder="e.g. 50"
+                            required
+                        />
+                        <InputError class="mt-2" :message="addForm.errors.deduction_amount" />
                     </div>
 
                     <div>
@@ -246,15 +294,54 @@ const deleteLoan = (loanId) => {
                     </div>
 
                     <div>
+                        <InputLabel :value="__('Deduction Method')" />
+                        <div class="mt-2 flex items-center gap-6">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input
+                                    type="radio"
+                                    v-model="editForm.deduction_type"
+                                    value="percentage"
+                                    class="text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-700"
+                                />
+                                <span class="ms-2 text-sm text-gray-700 dark:text-gray-300 font-medium">{{ __('Percentage (%)') }}</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input
+                                    type="radio"
+                                    v-model="editForm.deduction_type"
+                                    value="fixed"
+                                    class="text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-gray-700"
+                                />
+                                <span class="ms-2 text-sm text-gray-700 dark:text-gray-300 font-medium">{{ __('Fixed Amount') }}</span>
+                            </label>
+                        </div>
+                        <InputError class="mt-2" :message="editForm.errors.deduction_type" />
+                    </div>
+
+                    <div v-if="editForm.deduction_type === 'percentage'">
                         <InputLabel for="edit_deduction_percentage" :value="__('Loan Deduction Percentage (%)')" />
                         <TextInput
                             id="edit_deduction_percentage"
                             type="number"
                             v-model="editForm.deduction_percentage"
                             class="mt-1 block w-full"
+                            placeholder="e.g. 10"
                             required
                         />
                         <InputError class="mt-2" :message="editForm.errors.deduction_percentage" />
+                    </div>
+
+                    <div v-else>
+                        <InputLabel for="edit_deduction_amount" :value="__('Fixed Deduction Amount')" />
+                        <TextInput
+                            id="edit_deduction_amount"
+                            type="number"
+                            v-model="editForm.deduction_amount"
+                            class="mt-1 block w-full"
+                            placeholder="e.g. 50"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.deduction_amount" />
                     </div>
 
                     <div>

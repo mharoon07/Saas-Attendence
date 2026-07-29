@@ -83,9 +83,16 @@ class LeaveController extends Controller
      */
     public function create()
     {
+        $latestPayrollEndDate = \App\Models\Payroll::max('period_end');
+        $employeePayrollDates = \App\Models\Payroll::select('employee_id', DB::raw('MAX(period_end) as max_period_end'))
+            ->groupBy('employee_id')
+            ->pluck('max_period_end', 'employee_id');
+
         return Inertia::render('Leave/LeaveCreate', [
             'employees' => Employee::select('id', 'name', 'device_employee_id')->get(),
-            'leave_types' => ['Annual', 'Sick', 'Casual', 'Unpaid', 'Maternity', 'Paternity', 'Other']
+            'leave_types' => ['Annual', 'Sick', 'Casual', 'Unpaid', 'Maternity', 'Paternity', 'Other'],
+            'latest_payroll_end_date' => $latestPayrollEndDate,
+            'employee_payroll_dates' => $employeePayrollDates,
         ]);
     }
 
@@ -95,7 +102,7 @@ class LeaveController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => 'required',
             'leave_type' => 'required|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -106,21 +113,28 @@ class LeaveController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Prevent duplicate leaves for overlapping dates
-        $overlapExists = Leave::where('employee_id', $request->employee_id)
-            ->where('id', '!=', $request->id)
-            ->where(function ($query) use ($request) {
-                $query->whereBetween('start_date', [$request->start_date, $request->end_date])
-                      ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                      ->orWhere(function ($q) use ($request) {
-                          $q->where('start_date', '<=', $request->start_date)
-                            ->where('end_date', '>=', $request->end_date);
-                      });
-            })
-            ->exists();
+        $employeeIds = is_array($request->employee_id) ? $request->employee_id : [$request->employee_id];
+        $employeeIds = array_filter($employeeIds, fn($v) => !is_null($v) && $v !== '');
 
-        if ($overlapExists) {
-            return back()->withErrors(['dates' => 'Employee already has a leave record overlapping with these dates.']);
+        if (empty($employeeIds)) {
+            return back()->withErrors(['employee_id' => 'Please select at least one employee.']);
+        }
+
+        // Prevent leave creation/update for processed payroll period
+        $payrollQuery = \App\Models\Payroll::query();
+        if (!in_array('all', $employeeIds)) {
+            $payrollQuery->whereIn('employee_id', $employeeIds);
+        }
+        $latestPayrollEndDate = $payrollQuery->max('period_end');
+
+        if ($latestPayrollEndDate && Carbon::parse($request->start_date)->lte(Carbon::parse($latestPayrollEndDate))) {
+            return back()->withErrors(['start_date' => 'Leave cannot be added for a previous payroll period.']);
+        }
+
+        if (in_array('all', $employeeIds)) {
+            $employees = Employee::all();
+        } else {
+            $employees = Employee::whereIn('id', $employeeIds)->get();
         }
 
         // Calculate days
@@ -138,28 +152,55 @@ class LeaveController extends Controller
             $attachmentPath = $request->file('attachment')->store('leave_attachments', 'public');
         }
 
-        $leave = Leave::create([
-            'employee_id' => $request->employee_id,
-            'leave_type' => $request->leave_type,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'total_days' => $totalDays,
-            'half_day' => $request->half_day,
-            'reason' => $request->reason,
-            'attachment_path' => $attachmentPath,
-            'status' => $request->status,
-            'notes' => $request->notes,
-            'applied_by' => isAdmin() ? 'Admin' : 'Employee',
-            'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
-            'approved_at' => $request->status === 'Approved' ? now() : null,
-        ]);
+        $createdCount = 0;
+        $skippedCount = 0;
 
-        // Sync to attendance if approved
-        if ($leave->status === 'Approved') {
-            $this->syncLeaveToAttendance($leave);
+        foreach ($employees as $emp) {
+            $overlapExists = Leave::where('employee_id', $emp->id)
+                ->where(function ($query) use ($request) {
+                    $query->whereBetween('start_date', [$request->start_date, $request->end_date])
+                          ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                          ->orWhere(function ($q) use ($request) {
+                              $q->where('start_date', '<=', $request->start_date)
+                                ->where('end_date', '>=', $request->end_date);
+                          });
+                })
+                ->exists();
+
+            if ($overlapExists) {
+                $skippedCount++;
+                continue;
+            }
+
+            $leave = Leave::create([
+                'employee_id' => $emp->id,
+                'leave_type' => $request->leave_type,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'total_days' => $totalDays,
+                'half_day' => $request->half_day,
+                'reason' => $request->reason,
+                'attachment_path' => $attachmentPath,
+                'status' => $request->status,
+                'notes' => $request->notes,
+                'applied_by' => isAdmin() ? 'Admin' : 'Employee',
+                'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                'approved_at' => $request->status === 'Approved' ? now() : null,
+            ]);
+
+            if ($leave->status === 'Approved') {
+                $this->syncLeaveToAttendance($leave);
+            }
+
+            $createdCount++;
         }
 
-        return redirect()->route('leaves.index')->with('success', 'Leave record created successfully.');
+        $message = "Leave record created for {$createdCount} employee(s).";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} skipped due to date overlap)";
+        }
+
+        return redirect()->route('leaves.index')->with('success', $message);
     }
 
     /**
@@ -185,10 +226,21 @@ class LeaveController extends Controller
     {
         $leave = Leave::findOrFail($id);
 
+        if (Carbon::parse($leave->end_date)->lt(Carbon::today())) {
+            return redirect()->route('leaves.index')->withErrors(['error' => 'Cannot edit a leave request after its end date has passed.']);
+        }
+
+        $latestPayrollEndDate = \App\Models\Payroll::max('period_end');
+        $employeePayrollDates = \App\Models\Payroll::select('employee_id', DB::raw('MAX(period_end) as max_period_end'))
+            ->groupBy('employee_id')
+            ->pluck('max_period_end', 'employee_id');
+
         return Inertia::render('Leave/LeaveEdit', [
             'leave' => $leave,
             'employees' => Employee::select('id', 'name', 'device_employee_id')->get(),
-            'leave_types' => ['Annual', 'Sick', 'Casual', 'Unpaid', 'Maternity', 'Paternity', 'Other']
+            'leave_types' => ['Annual', 'Sick', 'Casual', 'Unpaid', 'Maternity', 'Paternity', 'Other'],
+            'latest_payroll_end_date' => $latestPayrollEndDate,
+            'employee_payroll_dates' => $employeePayrollDates,
         ]);
     }
 
@@ -199,8 +251,12 @@ class LeaveController extends Controller
     {
         $leave = Leave::findOrFail($id);
 
+        if (Carbon::parse($leave->end_date)->lt(Carbon::today())) {
+            return back()->withErrors(['error' => 'Cannot edit a leave request after its end date has passed.']);
+        }
+
         $request->validate([
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => 'required',
             'leave_type' => 'required|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -211,21 +267,28 @@ class LeaveController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Prevent duplicate leaves for overlapping dates
-        $overlapExists = Leave::where('employee_id', $request->employee_id)
-            ->where('id', '!=', $id)
-            ->where(function ($query) use ($request) {
-                $query->whereBetween('start_date', [$request->start_date, $request->end_date])
-                      ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                      ->orWhere(function ($q) use ($request) {
-                          $q->where('start_date', '<=', $request->start_date)
-                            ->where('end_date', '>=', $request->end_date);
-                      });
-            })
-            ->exists();
+        $employeeIds = is_array($request->employee_id) ? $request->employee_id : [$request->employee_id];
+        $employeeIds = array_filter($employeeIds, fn($v) => !is_null($v) && $v !== '');
 
-        if ($overlapExists) {
-            return back()->withErrors(['dates' => 'Employee already has a leave record overlapping with these dates.']);
+        if (empty($employeeIds)) {
+            return back()->withErrors(['employee_id' => 'Please select at least one employee.']);
+        }
+
+        // Prevent leave update for processed payroll period
+        $payrollQuery = \App\Models\Payroll::query();
+        if (!in_array('all', $employeeIds)) {
+            $payrollQuery->whereIn('employee_id', $employeeIds);
+        }
+        $latestPayrollEndDate = $payrollQuery->max('period_end');
+
+        if ($latestPayrollEndDate && Carbon::parse($request->start_date)->lte(Carbon::parse($latestPayrollEndDate))) {
+            return back()->withErrors(['start_date' => 'Leave cannot be added for a previous payroll period.']);
+        }
+
+        if (in_array('all', $employeeIds)) {
+            $employees = Employee::all();
+        } else {
+            $employees = Employee::whereIn('id', $employeeIds)->get();
         }
 
         // Calculate days
@@ -247,31 +310,80 @@ class LeaveController extends Controller
             $attachmentPath = $request->file('attachment')->store('leave_attachments', 'public');
         }
 
-        $oldStatus = $leave->status;
+        $createdCount = 0;
+        $skippedCount = 0;
 
-        $leave->update([
-            'employee_id' => $request->employee_id,
-            'leave_type' => $request->leave_type,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'total_days' => $totalDays,
-            'half_day' => $request->half_day,
-            'reason' => $request->reason,
-            'attachment_path' => $attachmentPath,
-            'status' => $request->status,
-            'notes' => $request->notes,
-            'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
-            'approved_at' => $request->status === 'Approved' ? now() : null,
-        ]);
+        foreach ($employees as $emp) {
+            if ($emp->id == $leave->employee_id) {
+                $oldStatus = $leave->status;
+                $leave->update([
+                    'leave_type' => $request->leave_type,
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'total_days' => $totalDays,
+                    'half_day' => $request->half_day,
+                    'reason' => $request->reason,
+                    'attachment_path' => $attachmentPath,
+                    'status' => $request->status,
+                    'notes' => $request->notes,
+                    'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                    'approved_at' => $request->status === 'Approved' ? now() : null,
+                ]);
 
-        // Sync attendance
-        if ($leave->status === 'Approved') {
-            $this->syncLeaveToAttendance($leave);
-        } else if ($oldStatus === 'Approved') {
-            $this->removeLeaveFromAttendance($leave);
+                if ($leave->status === 'Approved') {
+                    $this->syncLeaveToAttendance($leave);
+                } else if ($oldStatus === 'Approved') {
+                    $this->removeLeaveFromAttendance($leave);
+                }
+
+                $createdCount++;
+            } else {
+                $overlapExists = Leave::where('employee_id', $emp->id)
+                    ->where(function ($query) use ($request) {
+                        $query->whereBetween('start_date', [$request->start_date, $request->end_date])
+                              ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
+                              ->orWhere(function ($q) use ($request) {
+                                  $q->where('start_date', '<=', $request->start_date)
+                                    ->where('end_date', '>=', $request->end_date);
+                              });
+                    })
+                    ->exists();
+
+                if ($overlapExists) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $newLeave = Leave::create([
+                    'employee_id' => $emp->id,
+                    'leave_type' => $request->leave_type,
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'total_days' => $totalDays,
+                    'half_day' => $request->half_day,
+                    'reason' => $request->reason,
+                    'attachment_path' => $attachmentPath,
+                    'status' => $request->status,
+                    'notes' => $request->notes,
+                    'applied_by' => isAdmin() ? 'Admin' : 'Employee',
+                    'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                    'approved_at' => $request->status === 'Approved' ? now() : null,
+                ]);
+
+                if ($newLeave->status === 'Approved') {
+                    $this->syncLeaveToAttendance($newLeave);
+                }
+
+                $createdCount++;
+            }
         }
 
-        return redirect()->route('leaves.index')->with('success', 'Leave record updated successfully.');
+        $message = "Leave updated and applied to {$createdCount} employee(s).";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} skipped due to date overlap)";
+        }
+
+        return redirect()->route('leaves.index')->with('success', $message);
     }
 
     /**
@@ -301,6 +413,10 @@ class LeaveController extends Controller
     {
         $leave = Leave::findOrFail($id);
 
+        if (Carbon::parse($leave->end_date)->lt(Carbon::today())) {
+            return back()->withErrors(['error' => 'Cannot approve a leave request after its end date has passed.']);
+        }
+
         $leave->update([
             'status' => 'Approved',
             'notes' => $request->notes ?? $leave->notes,
@@ -319,6 +435,10 @@ class LeaveController extends Controller
     public function reject(Request $request, string $id)
     {
         $leave = Leave::findOrFail($id);
+
+        if (Carbon::parse($leave->end_date)->lt(Carbon::today())) {
+            return back()->withErrors(['error' => 'Cannot reject a leave request after its end date has passed.']);
+        }
 
         $this->removeLeaveFromAttendance($leave);
 

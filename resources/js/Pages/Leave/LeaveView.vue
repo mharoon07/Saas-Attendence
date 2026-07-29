@@ -50,7 +50,21 @@ const deleteLeave = () => {
     });
 };
 
+const isEndDatePassed = computed(() => {
+    if (!props.leave?.end_date) return false;
+    const [year, month, day] = props.leave.end_date.split('-').map(Number);
+    const end = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end < today;
+});
+
 const approveLeave = () => {
+    if (isEndDatePassed.value) {
+        Swal.fire(__('Error'), __('Cannot approve a leave request after its end date has passed.'), 'error');
+        return;
+    }
+
     Swal.fire({
         title: __('Approve Leave'),
         text: __('Are you sure you want to approve this leave request?'),
@@ -75,6 +89,11 @@ const approveLeave = () => {
 };
 
 const rejectLeave = () => {
+    if (isEndDatePassed.value) {
+        Swal.fire(__('Error'), __('Cannot reject a leave request after its end date has passed.'), 'error');
+        return;
+    }
+
     Swal.fire({
         title: __('Reject Leave'),
         text: __('Are you sure you want to reject this leave request?'),
@@ -233,14 +252,32 @@ const statusClass = computed(() => {
                             <!-- Approve/Reject buttons when status is Pending -->
                             <template v-if="leave.status === 'Pending'">
                                 <button 
+                                    v-if="!isEndDatePassed"
                                     @click="approveLeave" 
                                     class="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded shadow transition duration-150"
                                 >
                                     {{ __('Approve Request') }}
                                 </button>
                                 <button 
+                                    v-else
+                                    disabled
+                                    class="py-2 px-5 bg-gray-400 text-white font-semibold text-sm rounded cursor-not-allowed opacity-60"
+                                    :title="__('Cannot approve after end date has passed')"
+                                >
+                                    {{ __('Approve Request') }}
+                                </button>
+                                <button 
+                                    v-if="!isEndDatePassed"
                                     @click="rejectLeave" 
                                     class="py-2 px-5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded shadow transition duration-150"
+                                >
+                                    {{ __('Reject Request') }}
+                                </button>
+                                <button 
+                                    v-else
+                                    disabled
+                                    class="py-2 px-5 bg-gray-400 text-white font-semibold text-sm rounded cursor-not-allowed opacity-60"
+                                    :title="__('Cannot reject after end date has passed')"
                                 >
                                     {{ __('Reject Request') }}
                                 </button>
@@ -249,11 +286,19 @@ const statusClass = computed(() => {
 
                         <div class="flex gap-2">
                             <Link 
+                                v-if="!isEndDatePassed"
                                 :href="route('leaves.edit', leave.id)" 
                                 class="py-2 px-4 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                             >
                                 {{ __('Edit Record') }}
                             </Link>
+                            <span 
+                                v-else
+                                class="py-2 px-4 border border-gray-300 dark:border-gray-700 text-gray-400 rounded font-semibold text-sm cursor-not-allowed opacity-60"
+                                :title="__('Cannot edit after end date has passed')"
+                            >
+                                {{ __('Edit Record') }}
+                            </span>
                             <button 
                                 @click="deleteLeave" 
                                 class="py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded shadow transition duration-150"

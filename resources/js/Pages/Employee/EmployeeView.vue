@@ -61,6 +61,22 @@ const computedManages = computed(() => {
 
     return result;
 });
+
+const formattedSalary = computed(() => {
+    const salaries = props.employee?.salaries;
+    if (!salaries || salaries.length === 0) return __('N/A');
+    const sal = salaries[salaries.length - 1];
+    if (!sal) return __('N/A');
+
+    const curr = sal.currency || '';
+    if (sal.salary_type === 'hourly' && sal.hourly_rate != null) {
+        return `${Number(sal.hourly_rate).toLocaleString()} ${curr} / hr (${__('Hourly Basis')})`;
+    }
+
+    const val = sal.monthly_salary ?? sal.salary;
+    if (val == null) return __('N/A');
+    return `${Number(val).toLocaleString()} ${curr} / month (${__('Monthly Basis')})`;
+});
 </script>
 
 <template>
@@ -119,13 +135,7 @@ const computedManages = computed(() => {
                             <DD>{{ employee.bank_acc_no ?? __('N/A') }}</DD>
                         </DescriptionListItem>
 
-                        <DescriptionListItem>
-                            <DT>{{__('Birthday')}}</DT>
-                            <DD>{{
-                                extractPersonalDetails(employee.national_id).date_localized +
-                                ' - ' + useAgeCalculator(extractPersonalDetails(employee.national_id).date) + ' ' + __('Years')
-                              }}</DD>
-                        </DescriptionListItem>
+
 
                         <DescriptionListItem colored>
                             <DT>{{__('Hire Date')}}</DT>
@@ -144,17 +154,17 @@ const computedManages = computed(() => {
                     <DescriptionList>
                         <DescriptionListItem colored>
                             <DT>{{__('Branch')}}</DT>
-                            <DD>{{ employee.branch_name ?? __('N/A')}}</DD>
+                            <DD>{{ employee.branch?.name ?? employee.branch_name ?? __('N/A')}}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem colored>
                             <DT>{{__('Department')}}</DT>
-                            <DD>{{ employee.department_name ?? __('N/A') }}</DD>
+                            <DD>{{ employee.department?.department ?? employee.department_name ?? __('N/A') }}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem>
                             <DT>{{__('Salary')}}</DT>
-                            <DD>{{ (employee.salaries && employee.salaries.length > 0 && employee.salaries[employee.salaries.length - 1]?.salary != null) ? (Number(employee.salaries[employee.salaries.length - 1].salary).toLocaleString() + ' ' + (employee.salaries[employee.salaries.length - 1].currency || '')) : __('N/A') }}</DD>
+                            <DD>{{ formattedSalary }}</DD>
                         </DescriptionListItem>
 
                         <DescriptionListItem>
@@ -167,19 +177,7 @@ const computedManages = computed(() => {
                             <DD>{{ (!employee.employee_shifts || employee.employee_shifts.length === 0) ? __('N/A') : employee.employee_shifts.filter(shift => shift.end_date === null).map(shift => shift.shift?.name)[0] ?? __('N/A') }}</DD>
                         </DescriptionListItem>
 
-                        <DescriptionListItem colored>
-                            <DT>{{__('Access Permissions')}}</DT>
-                            <DD>{{ (!employee.roles || employee.roles.length === 0) ? __('Not Assigned') : employee.roles[employee.roles.length - 1]?.['name']?.replace(/_/g, ' ')?.replace(/\b\w/g, (match) => match.toUpperCase()) ?? __('Not Assigned') }}</DD>
-                        </DescriptionListItem>
 
-
-
-                        <DescriptionListItem >
-                            <DT>
-                                {{__('Manages')}}
-                                <ToolTip direction="top">{{__('IDs of the branches and/or departments that this employee manages, if any.')}}</ToolTip></DT>
-                            <DD>{{ (props.employee.manages && props.employee.manages.length > 0) ? computedManages : __('Nothing') }}</DD>
-                        </DescriptionListItem>
                     </DescriptionList>
                 </Card>
             </div>
