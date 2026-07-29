@@ -86,6 +86,9 @@ watch(() => form.half_day, (val) => {
 });
 
 watch(() => form.start_date, (val) => {
+    if (val && form.end_date && form.end_date < val) {
+        form.end_date = val;
+    }
     if (form.half_day && val) {
         form.end_date = val;
     }

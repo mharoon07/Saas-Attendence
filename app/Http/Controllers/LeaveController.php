@@ -184,7 +184,7 @@ class LeaveController extends Controller
                 'status' => $request->status,
                 'notes' => $request->notes,
                 'applied_by' => isAdmin() ? 'Admin' : 'Employee',
-                'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                'approved_by' => $request->status === 'Approved' ? $this->getApproverEmployeeId() : null,
                 'approved_at' => $request->status === 'Approved' ? now() : null,
             ]);
 
@@ -326,7 +326,7 @@ class LeaveController extends Controller
                     'attachment_path' => $attachmentPath,
                     'status' => $request->status,
                     'notes' => $request->notes,
-                    'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                    'approved_by' => $request->status === 'Approved' ? $this->getApproverEmployeeId() : null,
                     'approved_at' => $request->status === 'Approved' ? now() : null,
                 ]);
 
@@ -366,7 +366,7 @@ class LeaveController extends Controller
                     'status' => $request->status,
                     'notes' => $request->notes,
                     'applied_by' => isAdmin() ? 'Admin' : 'Employee',
-                    'approved_by' => $request->status === 'Approved' ? auth()->user()->id : null,
+                    'approved_by' => $request->status === 'Approved' ? $this->getApproverEmployeeId() : null,
                     'approved_at' => $request->status === 'Approved' ? now() : null,
                 ]);
 
@@ -420,7 +420,7 @@ class LeaveController extends Controller
         $leave->update([
             'status' => 'Approved',
             'notes' => $request->notes ?? $leave->notes,
-            'approved_by' => auth()->user()->id,
+            'approved_by' => $this->getApproverEmployeeId(),
             'approved_at' => now(),
         ]);
 
@@ -445,11 +445,35 @@ class LeaveController extends Controller
         $leave->update([
             'status' => 'Rejected',
             'notes' => $request->notes ?? $leave->notes,
-            'approved_by' => auth()->user()->id,
+            'approved_by' => $this->getApproverEmployeeId(),
             'approved_at' => now(),
         ]);
 
         return redirect()->back()->with('success', 'Leave rejected successfully.');
+    }
+
+    /**
+     * Helper to safely resolve logged in user to employee ID for approved_by foreign key.
+     */
+    private function getApproverEmployeeId(): ?int
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return null;
+        }
+
+        if (Employee::where('id', $user->id)->exists()) {
+            return (int)$user->id;
+        }
+
+        if (!empty($user->email)) {
+            $empId = Employee::where('email', $user->email)->value('id');
+            if ($empId) {
+                return (int)$empId;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -460,7 +484,7 @@ class LeaveController extends Controller
         $start = Carbon::parse($leave->start_date);
         $end = Carbon::parse($leave->end_date);
 
-        for ($date = $start; $date->lte($end); $date->addDay()) {
+        for ($date = $start->clone(); $date->lte($end); $date->addDay()) {
             Attendance::updateOrCreate(
                 [
                     'employee_id' => $leave->employee_id,
